@@ -1,0 +1,16 @@
+html, body {
+            margin: 0;         /* Remove margens padrão */
+            padding: 0;        /* Remove preenchimentos padrão */
+            overflow-x: hidden;/* Esconde a barra de rolagem horizontal */
+            width: 100%;       /* Opcional: faz o corpo ocupar a largura total sem exceder */
+            height: 100%;      /* Opcional: faz o corpo ocupar a altura total */
+        }
+        /* Opcional: Para centralizar o canvas na tela, se desejar */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;/* Cor de fundo para a área fora do canvas */
+        }
+        canvas {
+            border: 1px solid black; /* Apenas para ver os limites do canvas facilmente */
+        }
