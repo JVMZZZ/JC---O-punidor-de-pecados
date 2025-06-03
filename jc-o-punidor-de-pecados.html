@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JC o punidor de pecados</title>
+    <meta charset="UTF-8">
+    <script src="spritesheet.js"></script>
+    <script src="animacao.js"></script>
+    <script src="teclado.js"></script>
+    <script src="aguabenta.js"></script> 
+    <script src="jc.js"></script>
+</head>
+<body>
+    <canvas id="canvas_jc" width="500" height="500"></canvas>
+    <script>
+        var canvas = document.getElementById('canvas_jc');
+        var context = canvas.getContext('2d');
+
+        // Certifique-se que as constantes de tecla estejam definidas e acessíveis
+        var SETA_CIMA = 38;
+        var ESPACO = 32; // Para atirar
+        var TECLA_W = 87;
+        // SETA_DIREITA, SETA_ESQUERDA, TECLA_A, TECLA_D devem estar em teclado.js
+
+        var teclado = new Teclado(document);
+        var animacao = new Animacao(context);
+
+        var imgJC = new Image();
+        imgJC.src = 'img/JC_alpha.png'; // Verifique se este caminho está correto!
+
+        // Modifique a criação do JC para passar 'animacao' e 'canvas'
+        var jc = new JC(context, teclado, imgJC, animacao, canvas); // <<--- MODIFICADO
+
+        animacao.novoSprite(jc);
+
+        // --- CONFIGURAR TECLAS DE PULO E TIRO ---
+        teclado.disparou(SETA_CIMA, jc.pular.bind(jc));
+        teclado.disparou(TECLA_W, jc.pular.bind(jc));
+        teclado.disparou(ESPACO, jc.atirar.bind(jc)); // <<--- ESPACO AGORA CHAMA jc.atirar()
+        // ----------------------------------------
+
+        imgJC.onload = function() {
+            console.log("Imagem do JC carregada, iniciando animação.");
+            animacao.ligar();
+        }
+
+        imgJC.onerror = function() {
+            console.error("MAIN: ERRO AO CARREGAR IMAGEM JC! Verifique o caminho: " + imgJC.src);
+        };
+    </script>
+</body>
+</html>
