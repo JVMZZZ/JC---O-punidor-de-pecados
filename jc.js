@@ -1,6 +1,5 @@
 var JC_DIREITA = 1;
 var JC_ESQUERDA = 2;
-
 // Constantes das teclas já devem estar em teclado.js
 
 // Modifique o Construtor para receber 'animacao' e 'canvas'
