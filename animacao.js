@@ -8,43 +8,48 @@ function Animacao(context, canvas) {
     this.cameraX = 0;
     this.cameraY = 0;
     
-    // --- MUDANÇAS AQUI ---
-    this.mundoLargura = 3000;             // << NOVO: Largura do mundo reduzida
-    this.distanciaSpawnInimigo = 900;     // << NOVO: Distância fixa para spawnar do jogador
-    // --- FIM DAS MUDANÇAS ---
+    this.mundoLargura = 5000;
+    this.distanciaSpawnInimigo = 700; 
 
     this.jogadorPrincipal = null;
     this.cameraSuavizacao = 0.08;
-    this.imgCoracaoHUD = null;
+    this.imgCoracaoHUD = null; // Será usado para dropar corações também
 
     this.maxInimigos = 5;
     this.frequenciaSpawnInimigo = 5000;
     this.tempoUltimoSpawnInimigo = 0;
 
     this.imgInimigo = null;
-    this.imgInimigoLinhas = 1;  // Lembre-se de configurar estes no seu HTML
-    this.imgInimigoColunas = 4; // Lembre-se de configurar estes no seu HTML
+    this.imgInimigoLinhas = 1;
+    this.imgInimigoColunas = 4;
 
-    // << NOVA PROPRIEDADE PARA DISTÂNCIA ENTRE INIMIGOS >>
     this.distanciaMinimaEntreInimigos = 40; 
+
+    // PROPRIEDADES PARA O PORTÃO/BARREIRA E CONDIÇÃO
+    this.condicaoPortao4000Liberado = false;
+    this.jogadorPassouPortao4000 = false;
+    this.inimigosDerrotadosContador = 0; // Para o portão
+    this.totalInimigosParaLiberarPortao = 5; 
+
+    // NOVAS PROPRIEDADES PARA DROP DE CORAÇÃO
+    this.abatesDesdeUltimoCoracao = 0;
+    this.abatesNecessariosPorCoracao = 3;
 }
 
 Animacao.prototype = {
     novoSprite: function(sprite, ehJogadorPrincipal = false) {
-        // console.log("[Animacao.JS novoSprite] Adicionando sprite:", (sprite && sprite.tipo ? sprite.tipo : "N/A"));
         this.sprites.push(sprite);
         if (ehJogadorPrincipal) {
             this.jogadorPrincipal = sprite;
         }
-        // Garante que todos os sprites tenham referência à instância de animação, se precisarem
         if (sprite && typeof sprite.animacao === 'undefined') {
-             sprite.animacao = this;
+            sprite.animacao = this;
         }
     },
 
     ligar: function() {
-        this.ultimoTempo = Date.now(); // Usar Date.now() para o tempo inicial
-        this.tempoUltimoSpawnInimigo = Date.now(); // Inicializa o timer de spawn
+        this.ultimoTempo = Date.now();
+        this.tempoUltimoSpawnInimigo = Date.now();
         this.ligado = true;
         this.proximoFrame();
     },
@@ -55,152 +60,140 @@ Animacao.prototype = {
 
     atualizarCamera: function() {
         if (!this.jogadorPrincipal) return;
-        // Lógica de câmera suavizada (como você já tinha)
-        let alvoCameraX = this.jogadorPrincipal.x - (this.canvas.width / 2) + (this.jogadorPrincipal.largura / 2);
-        let novaCameraX = this.cameraX + (alvoCameraX - this.cameraX) * this.cameraSuavizacao;
-        if (Math.abs(alvoCameraX - novaCameraX) < 0.5) novaCameraX = alvoCameraX; // Snap se perto
-        this.cameraX = novaCameraX;
-        this.cameraX = Math.max(0, Math.min(this.cameraX, this.mundoLargura - this.canvas.width)); // Limites da câmera
-        // this.cameraY similarmente se você tiver movimento vertical da câmera
+        const BARRIER_X_COORD = 4000;
+
+        if (this.jogadorPassouPortao4000) {
+            this.cameraX = BARRIER_X_COORD;
+            if (this.mundoLargura - BARRIER_X_COORD < this.canvas.width && BARRIER_X_COORD <= this.mundoLargura - this.canvas.width) {
+                 this.cameraX = this.mundoLargura - this.canvas.width;
+            } else if (BARRIER_X_COORD > this.mundoLargura - this.canvas.width) {
+                 this.cameraX = Math.max(0, this.mundoLargura - this.canvas.width);
+            }
+            this.cameraX = Math.max(0, Math.min(this.cameraX, this.mundoLargura - this.canvas.width));
+        } else {
+            let alvoCameraX = this.jogadorPrincipal.x - (this.canvas.width / 2) + (this.jogadorPrincipal.largura / 2);
+            let suavizacaoAtual = this.cameraSuavizacao;
+            let novaCameraX = this.cameraX + (alvoCameraX - this.cameraX) * suavizacaoAtual;
+            if (Math.abs(alvoCameraX - novaCameraX) < 0.5) novaCameraX = alvoCameraX;
+            this.cameraX = novaCameraX;
+            this.cameraX = Math.max(0, Math.min(this.cameraX, this.mundoLargura - this.canvas.width));
+        }
     },
 
     tentarSpawnInimigo: function(tempoAtual) {
-        // console.log("[SPAWN_DEBUG] Verificando spawn..."); // Mantenha os logs de debug se precisar
-
-        if ((tempoAtual - this.tempoUltimoSpawnInimigo) < this.frequenciaSpawnInimigo) {
-            return; 
-        }
+        if (this.jogadorPassouPortao4000) return; 
+        if ((tempoAtual - this.tempoUltimoSpawnInimigo) < this.frequenciaSpawnInimigo) return; 
         this.tempoUltimoSpawnInimigo = tempoAtual;
+        let inimigosVivos = this.sprites.filter(s => s && s.tipo === 'inimigo' && !s.removivel).length;
+        if (inimigosVivos >= this.maxInimigos) return;
+        if (!this.imgInimigo || !this.jogadorPrincipal || !this.imgInimigo.complete || this.imgInimigo.naturalHeight === 0) return;
 
-        let inimigosVivos = 0;
-        for (let i = 0; i < this.sprites.length; i++) {
-            if (this.sprites[i] && this.sprites[i].tipo === 'inimigo' && !this.sprites[i].removivel) {
-                inimigosVivos++;
-            }
-        }
-
-        if (inimigosVivos >= this.maxInimigos) {
-            // console.log("[SPAWN_DEBUG] Máximo de inimigos atingido.");
-            return;
-        }
-
-        if (!this.imgInimigo || !this.jogadorPrincipal) {
-            console.warn("[Animacao] Spawn cancelado (ainda): imgInimigo ou jogadorPrincipal não definidos.");
-            return;
-        }
-        if (!this.imgInimigo.complete || this.imgInimigo.naturalHeight === 0) {
-            console.warn("[Animacao] Spawn cancelado (ainda): imgInimigo não carregada completamente.");
-            return;
-        }
-
-        // --- LÓGICA DE POSIÇÃO DE SPAWN ATUALIZADA ---
-        let spawnX = 0;
-        // Assumindo que jogadorPrincipal.posicaoChao existe e é onde o inimigo deve spawnar verticalmente.
-        // Se inimigo.js não define this.posicaoChao ou a usa, ajuste conforme necessário.
-        let spawnY = (this.jogadorPrincipal && typeof this.jogadorPrincipal.posicaoChao === 'number') 
-                     ? this.jogadorPrincipal.posicaoChao 
-                     : (this.canvas.height - 100); // Fallback se posicaoChao não estiver definida
-
+        let spawnY = (this.jogadorPrincipal.posicaoChao !== undefined) ? this.jogadorPrincipal.posicaoChao : (this.canvas.height - 100);
         let playerX = this.jogadorPrincipal.x;
+        let larguraEstimadaInimigo = (this.imgInimigoColunas > 0) ? this.imgInimigo.naturalWidth / this.imgInimigoColunas : 50;
         
-        let larguraEstimadaInimigo = 0;
-        if (this.imgInimigo && this.imgInimigo.complete && this.imgInimigoColunas > 0 && this.imgInimigo.naturalWidth > 0) {
-            larguraEstimadaInimigo = this.imgInimigo.naturalWidth / this.imgInimigoColunas;
-        } else {
-            larguraEstimadaInimigo = 50; // Um valor padrão se não puder calcular
-        }
-
         let posicoesPossiveisX = [];
-        
         let spawnEsquerdaX = playerX - this.distanciaSpawnInimigo;
-        if (spawnEsquerdaX >= 0 && spawnEsquerdaX <= this.mundoLargura - larguraEstimadaInimigo) {
+        if (spawnEsquerdaX >= 0 && (spawnEsquerdaX + larguraEstimadaInimigo) < 3950) { // Não spawna muito perto da barreira (3950)
             posicoesPossiveisX.push(spawnEsquerdaX);
         }
-
         let spawnDireitaX = playerX + this.distanciaSpawnInimigo;
-        if (spawnDireitaX >= 0 && spawnDireitaX <= this.mundoLargura - larguraEstimadaInimigo) {
-            posicoesPossiveisX.push(spawnDireitaX);
+        if (spawnDireitaX >= 0 && (spawnDireitaX + larguraEstimadaInimigo) < 3950) {
+             posicoesPossiveisX.push(spawnDireitaX);
         }
 
         if (posicoesPossiveisX.length > 0) {
-            spawnX = posicoesPossiveisX[Math.floor(Math.random() * posicoesPossiveisX.length)];
-            
-            console.log(`[Animacao] Spawnando novo inimigo. Vivos (antes): ${inimigosVivos}. Pos: (${spawnX.toFixed(0)}, ${spawnY.toFixed(0)})`);
-
-            let novoInimigo = new Inimigo(
-                this.context,
-                spawnX,
-                spawnY, // Usando spawnY calculado
-                this.jogadorPrincipal,
-                this,
-                this.canvas,
-                this.imgInimigo,
-                this.imgInimigoLinhas,
-                this.imgInimigoColunas
-            );
+            let spawnX = posicoesPossiveisX[Math.floor(Math.random() * posicoesPossiveisX.length)];
+            var novoInimigo = new Inimigo(this.context, spawnX, spawnY, this.jogadorPrincipal, this, this.canvas, this.imgInimigo, this.imgInimigoLinhas, this.imgInimigoColunas);
             this.novoSprite(novoInimigo);
-        } else {
-            // console.log(`[Animacao] Não foi possível encontrar posição de spawn a ${this.distanciaSpawnInimigo}px do jogador dentro do mundo de ${this.mundoLargura}px.`);
         }
-        // --- FIM DA LÓGICA DE POSIÇÃO DE SPAWN ATUALIZADA ---
     },
 
-    // << NOVO MÉTODO PARA SEPARAÇÃO DE INIMIGOS >>
     aplicarSeparacaoInimigos: function() {
+        if (this.jogadorPassouPortao4000) return;
+        // ... (código de separação como antes, mas pode ser otimizado ou simplificado se necessário) ...
         let inimigos = this.sprites.filter(sprite => sprite && sprite.tipo === 'inimigo' && !sprite.removivel);
-
         for (let i = 0; i < inimigos.length; i++) {
             for (let j = i + 1; j < inimigos.length; j++) {
-                let inimigoA = inimigos[i];
-                let inimigoB = inimigos[j];
-
-                // Assegurar que largura e altura sejam números válidos
-                let larguraA = (typeof inimigoA.largura === 'number' && inimigoA.largura > 0) ? inimigoA.largura : 50;
-                let alturaA = (typeof inimigoA.altura === 'number' && inimigoA.altura > 0) ? inimigoA.altura : 50;
-                let larguraB = (typeof inimigoB.largura === 'number' && inimigoB.largura > 0) ? inimigoB.largura : 50;
-                let alturaB = (typeof inimigoB.altura === 'number' && inimigoB.altura > 0) ? inimigoB.altura : 50;
-
-
-                let centroAx = inimigoA.x + larguraA / 2;
-                let centroAy = inimigoA.y + alturaA / 2;
-                let centroBx = inimigoB.x + larguraB / 2;
-                let centroBy = inimigoB.y + alturaB / 2;
-
-                let dx = centroBx - centroAx;
-                let dy = centroBy - centroAy;
-                let distancia = Math.sqrt(dx * dx + dy * dy);
-
-                if (distancia < this.distanciaMinimaEntreInimigos && distancia > 0) { // distancia > 0 para evitar NaN
-                    let sobreposicao = this.distanciaMinimaEntreInimigos - distancia;
-                    // Normalizar o vetor de direção (dx, dy)
-                    let normDx = dx / distancia;
-                    let normDy = dy / distancia;
-
-                    let moverValor = sobreposicao / 2; // Cada inimigo se move metade da sobreposição
-
-                    // Mover inimigoA para longe de inimigoB
-                    inimigoA.x -= normDx * moverValor;
-                    inimigoA.y -= normDy * moverValor;
-
-                    // Mover inimigoB para longe de inimigoA
-                    inimigoB.x += normDx * moverValor;
-                    inimigoB.y += normDy * moverValor;
-
-                    // Restringir posições para dentro do mundo
-                    // Eixo X
-                    inimigoA.x = Math.max(0, Math.min(inimigoA.x, this.mundoLargura - larguraA));
-                    inimigoB.x = Math.max(0, Math.min(inimigoB.x, this.mundoLargura - larguraB));
-                    
-                    // Eixo Y - A restrição em Y depende se os inimigos devem ficar no chão.
-                    // O código de Inimigo.js permite movimento em Y para perseguir o jogador.
-                    // Se eles tivessem que ficar no chão, por exemplo em this.jogadorPrincipal.posicaoChao:
-                    // inimigoA.y = this.jogadorPrincipal.posicaoChao - alturaA; (se y é o topo)
-                    // inimigoB.y = this.jogadorPrincipal.posicaoChao - alturaB;
-                    // Por agora, vamos assumir que o movimento em Y é livre, como na perseguição.
-                    // Se houver limites verticais para o mundo, adicione-os aqui.
-                    // Ex: inimigoA.y = Math.max(0, Math.min(inimigoA.y, this.canvas.height - alturaA));
-                    //     inimigoB.y = Math.max(0, Math.min(inimigoB.y, this.canvas.height - alturaB));
+                let inimigoA = inimigos[i]; let inimigoB = inimigos[j];
+                let la = inimigoA.largura || 50; let ha = inimigoA.altura || 50;
+                let lb = inimigoB.largura || 50; let hb = inimigoB.altura || 50;
+                let caX = inimigoA.x + la/2; let caY = inimigoA.y + ha/2;
+                let cbX = inimigoB.x + lb/2; let cbY = inimigoB.y + hb/2;
+                let dx = cbX - caX; let dy = cbY - caY;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < this.distanciaMinimaEntreInimigos && dist > 0) {
+                    let sobreposicao = this.distanciaMinimaEntreInimigos - dist;
+                    let normDx = dx/dist; let normDy = dy/dist;
+                    let mover = sobreposicao/2;
+                    inimigoA.x -= normDx * mover; inimigoA.y -= normDy * mover;
+                    inimigoB.x += normDx * mover; inimigoB.y += normDy * mover;
+                    inimigoA.x = Math.max(0, Math.min(inimigoA.x, this.mundoLargura - la));
+                    inimigoB.x = Math.max(0, Math.min(inimigoB.x, this.mundoLargura - lb));
                 }
+            }
+        }
+    },
+
+    verificarCondicaoPortao4000: function() {
+        if (this.condicaoPortao4000Liberado) return;
+        if (this.inimigosDerrotadosContador >= this.totalInimigosParaLiberarPortao) {
+            this.condicaoPortao4000Liberado = true;
+            console.log("CONDIÇÃO DO PORTÃO 4000 CUMPRIDA! Portão liberado.");
+        }
+    },
+
+    desenharFeedbackPortao4000: function() {
+        if (this.jogadorPassouPortao4000) return;
+        const BARRIER_X_COORD = 4000;
+        const ALTURA_PAREDE = this.canvas.height;
+        const LARGURA_PAREDE = 20;
+
+        if (BARRIER_X_COORD + LARGURA_PAREDE / 2 < this.cameraX || 
+            BARRIER_X_COORD - LARGURA_PAREDE / 2 > this.cameraX + this.canvas.width) {
+            return; 
+        }
+        let xDesenhoParede = BARRIER_X_COORD; 
+        this.context.save();
+        if (this.condicaoPortao4000Liberado) {
+            if (this.jogadorPrincipal && Math.abs(this.jogadorPrincipal.x - BARRIER_X_COORD) < 400) {
+                this.context.fillStyle = 'lightgreen'; this.context.font = 'bold 20px Arial';
+                this.context.textAlign = 'center'; this.context.shadowColor = "black";
+                this.context.shadowBlur = 4; this.context.fillText("CAMINHO LIVRE!", xDesenhoParede, 50);
+                this.context.shadowColor = "transparent";
+            }
+        } else {
+            this.context.fillStyle = '#4A4A4A'; this.context.strokeStyle = '#202020'; 
+            this.context.lineWidth = 3;
+            this.context.fillRect(xDesenhoParede - LARGURA_PAREDE / 2, 0, LARGURA_PAREDE, ALTURA_PAREDE);
+            this.context.strokeRect(xDesenhoParede - LARGURA_PAREDE / 2, 0, LARGURA_PAREDE, ALTURA_PAREDE);
+            this.context.strokeStyle = 'rgba(0, 0, 0, 0.3)'; this.context.lineWidth = 1;
+            const numLinhasV = 3; const espLinhas = LARGURA_PAREDE / (numLinhasV + 1);
+            for (let i = 1; i <= numLinhasV; i++) {
+                let xL = xDesenhoParede - LARGURA_PAREDE / 2 + (i * espLinhas);
+                this.context.beginPath(); this.context.moveTo(xL, 0); this.context.lineTo(xL, ALTURA_PAREDE); this.context.stroke();
+            }
+            if (this.jogadorPrincipal && Math.abs(this.jogadorPrincipal.x - BARRIER_X_COORD) < 400) {
+                let inimigosFaltantes = Math.max(0, this.totalInimigosParaLiberarPortao - this.inimigosDerrotadosContador);
+                let txt = `BARREIRA ATIVA!\nDerrote ${inimigosFaltantes} inimigos.`;
+                if (inimigosFaltantes === 1) txt = `BARREIRA ATIVA!\nDerrote mais 1 inimigo.`;
+                else if (inimigosFaltantes === 0 && !this.condicaoPortao4000Liberado) txt = `BARREIRA ATIVA!\nProcessando...`;
+                this.context.fillStyle = 'white'; this.context.font = 'bold 16px Arial'; this.context.textAlign = 'center';
+                this.context.shadowColor = "black"; this.context.shadowBlur = 5;
+                const lineHeight = 20; const lines = txt.split('\n');
+                for (let j = 0; j < lines.length; j++) this.context.fillText(lines[j], xDesenhoParede, 40 + (j * lineHeight));
+                this.context.shadowColor = "transparent";
+            }
+        }
+        this.context.restore();
+    },
+
+    ativarEfeitosPortao4000: function() {
+        console.log("ATIVANDO EFEITOS DO PORTÃO 4000! Eliminando inimigos...");
+        for (let i = 0; i < this.sprites.length; i++) {
+            let sprite = this.sprites[i];
+            if (sprite && sprite.tipo === 'inimigo' && !sprite.removivel) {
+                sprite.removivel = true;
             }
         }
     },
@@ -212,145 +205,145 @@ Animacao.prototype = {
         var deltaTime = (agora - this.ultimoTempo) / 1000.0;
         this.ultimoTempo = agora; 
 
+        this.verificarCondicaoPortao4000();
+        let estavaAntesDoPortao = !this.jogadorPassouPortao4000;
         this.tentarSpawnInimigo(agora);
 
-        this.atualizarCamera();
-        this.limparTela();
-
-        this.context.save();
-        this.context.translate(-this.cameraX, -this.cameraY);
-
-        // Atualizar todos os sprites
         for (var i = 0; i < this.sprites.length; i++) {
             const spriteAtual = this.sprites[i];
             if (spriteAtual && typeof spriteAtual.atualizar === 'function') {
                 spriteAtual.atualizar(deltaTime);
             }
         }
+        
+        if (estavaAntesDoPortao && this.jogadorPassouPortao4000) {
+            this.ativarEfeitosPortao4000();
+        }
 
-        // << CHAMAR A LÓGICA DE SEPARAÇÃO DEPOIS DE ATUALIZAR AS POSIÇÕES >>
+        this.atualizarCamera(); 
+        this.limparTela();
+
+        this.context.save();
+        this.context.translate(-this.cameraX, -this.cameraY);
+        
         this.aplicarSeparacaoInimigos();
 
-        // Lógica de colisão existente
         var jogador = this.jogadorPrincipal;
-        if (jogador && typeof jogador.getHitboxMundo === 'function' &&
-            typeof jogador.estaMorto !== 'undefined' && !jogador.estaMorto) {
+        if (jogador && !jogador.estaMorto && jogador.getHitboxMundo) {
             var hitboxJogador = jogador.getHitboxMundo();
-            for (var i = 0; i < this.sprites.length; i++) {
+            for (var i = this.sprites.length - 1; i >= 0; i--) {
                 var outroSprite = this.sprites[i];
-                if (!outroSprite || outroSprite === jogador || typeof outroSprite.getHitboxMundo !== 'function' || !outroSprite.tipo) {
-                    continue;
-                }
+                if (!outroSprite || outroSprite === jogador || !outroSprite.getHitboxMundo || !outroSprite.tipo) continue;
+                
                 if (outroSprite.tipo === 'inimigo' || outroSprite.tipo === 'laserInimigo') {
                     var hitboxOutro = outroSprite.getHitboxMundo();
-                    if (colidemRetangulos(hitboxJogador, hitboxOutro)) {
-                        // console.log("COLISÃO DETECTADA entre JC e:", outroSprite.tipo);
-                        jogador.receberDano();
-                        if (outroSprite.tipo === 'laserInimigo' && typeof outroSprite.removivel !== 'undefined') {
-                            outroSprite.removivel = true;
-                        }
-                        // break; // Considerar se o jogador deve levar apenas um dano por frame
+                    if (hitboxOutro && colidemRetangulos(hitboxJogador, hitboxOutro)) {
+                        if (typeof jogador.receberDano === 'function') jogador.receberDano();
+                        if (outroSprite.tipo === 'laserInimigo') outroSprite.removivel = true;
                     }
-                }
-                else if (outroSprite.tipo === 'aguaBenta') {
+                } else if (outroSprite.tipo === 'aguaBenta') {
                     var hitboxAguaBenta = outroSprite.getHitboxMundo();
-                    for (var j = 0; j < this.sprites.length; j++) {
+                    if (!hitboxAguaBenta) continue;
+                    for (var j = this.sprites.length - 1; j >= 0; j--) { // Iterar com cuidado se for modificar o array
+                        if (i === j) continue; // Não colidir aguaBenta consigo mesma (se fosse o caso)
                         var possivelInimigo = this.sprites[j];
-                        if (possivelInimigo && possivelInimigo.tipo === 'inimigo' && typeof possivelInimigo.getHitboxMundo === 'function') {
+                        if (possivelInimigo && possivelInimigo.tipo === 'inimigo' && !possivelInimigo.removivel && possivelInimigo.getHitboxMundo) {
                             var hitboxInimigo = possivelInimigo.getHitboxMundo();
-                            if (colidemRetangulos(hitboxAguaBenta, hitboxInimigo)) {
-                                // console.log("COLISÃO: AguaBenta atingiu Inimigo!");
-                                if (typeof possivelInimigo.receberDano === 'function') { // Se o inimigo tiver um método receberDano
-                                    // possivelInimigo.receberDano(1); // Você precisaria criar essa função no inimigo.js
-                                    console.log("Inimigo atingido por AguaBenta. Implementar receberDano no inimigo.");
-                                    possivelInimigo.removivel = true;
-                                } else {
-                                    possivelInimigo.removivel = true;
-                                }
+                            if (hitboxInimigo && colidemRetangulos(hitboxAguaBenta, hitboxInimigo)) {
+                                console.log("DEBUG CORAÇÃO: Colisão AguaBenta com Inimigo detectada."); // Log 1
+                                possivelInimigo.removivel = true; 
                                 outroSprite.removivel = true;
-                                // break; // AguaBenta atinge um inimigo e some
+
+                                if (!this.condicaoPortao4000Liberado) this.inimigosDerrotadosContador++;
+                                
+                                if (this.jogadorPrincipal) {
+                                    console.log("DEBUG CORAÇÃO: Verificando condições de drop..."); // Log 2
+                                    console.log(`DEBUG CORAÇÃO: Vidas J: ${this.jogadorPrincipal.vidas}, Max Vidas J: ${this.jogadorPrincipal.maxVidas}, Passou Portão: ${this.jogadorPassouPortao4000}`); // Log 3
+
+                                    if (this.jogadorPrincipal.vidas < this.jogadorPrincipal.maxVidas && !this.jogadorPassouPortao4000) {
+                                        this.abatesDesdeUltimoCoracao++;
+                                        console.log(`DEBUG CORAÇÃO: Abates para coração incrementado: ${this.abatesDesdeUltimoCoracao}/${this.abatesNecessariosPorCoracao}`); // Log 4
+                                        if (this.abatesDesdeUltimoCoracao >= this.abatesNecessariosPorCoracao) {
+                                            console.log("DEBUG CORAÇÃO: CONDIÇÃO DE ABATES ATINGIDA PARA DROP!"); // Log 5
+                                            if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalWidth > 0) {
+                                                console.log("DEBUG CORAÇÃO: Imagem do coração OK. Tentando dropar..."); // Log 6
+                                                let imgH = this.imgCoracaoHUD.naturalHeight || 20; let imgW = this.imgCoracaoHUD.naturalWidth || 20;
+                                                let pInimigoL = possivelInimigo.largura || 50; let pInimigoA = possivelInimigo.altura || 50;
+                                                let dropX = possivelInimigo.x + (pInimigoL / 2) - (imgW / 2);
+                                                let dropY = possivelInimigo.y + (pInimigoA / 2) - (imgH / 2);
+                                                dropX = Math.max(10, Math.min(dropX, this.mundoLargura - imgW - 10));
+                                                dropY = Math.max(10, Math.min(dropY, this.canvas.height - imgH - 10));
+                                                var coracaoDrop = new CoracaoDropado(this.context, dropX, dropY, this.imgCoracaoHUD, this);
+                                                this.novoSprite(coracaoDrop); 
+                                                console.log("DEBUG CORAÇÃO: CORAÇÃO EFETIVAMENTE DROPADO em X:", dropX.toFixed(0), "Y:", dropY.toFixed(0)); // Log 7
+                                                this.abatesDesdeUltimoCoracao = 0; 
+                                            } else {
+                                                console.warn("DEBUG CORAÇÃO: Imagem do coração (this.imgCoracaoHUD) NÃO pronta para drop. Completa:", this.imgCoracaoHUD ? this.imgCoracaoHUD.complete : 'N/A', "Largura:", this.imgCoracaoHUD ? this.imgCoracaoHUD.naturalWidth : 'N/A'); // Log 8
+                                            }
+                                        }
+                                    } else {
+                                        console.log("DEBUG CORAÇÃO: Condição de vida do jogador ou portão não permitiu contagem para drop."); // Log 9
+                                        if(this.jogadorPrincipal.vidas >= this.jogadorPrincipal.maxVidas) console.log("DEBUG CORAÇÃO: Vidas do jogador no máximo.");
+                                        if(this.jogadorPassouPortao4000) console.log("DEBUG CORAÇÃO: Jogador já passou do portão 4000.");
+                                    }
+                                } else {
+                                   console.warn("DEBUG CORAÇÃO: jogadorPrincipal não definido ao tentar dropar coração."); // Log 10
+                                }
+                                break; 
                             }
                         }
                     }
+                } else if (outroSprite.tipo === 'coracaoDropado') {
+                    var hitboxCoracao = outroSprite.getHitboxMundo();
+                    if (hitboxCoracao && colidemRetangulos(hitboxJogador, hitboxCoracao)) {
+                        if (typeof jogador.ganharVida === 'function') jogador.ganharVida(1);
+                        outroSprite.removivel = true;
+                        console.log("DEBUG CORAÇÃO: Jogador coletou um coração!");
+                    }
                 }
             }
         }
 
-        // Remover sprites marcados como removíveis
-        this.sprites = this.sprites.filter(function(sprite) { return sprite && !sprite.removivel; });
+        this.sprites = this.sprites.filter(sprite => sprite && !sprite.removivel);
 
-        // Desenhar todos os sprites
         for (var i = 0; i < this.sprites.length; i++) {
-            if (this.sprites[i] && typeof this.sprites[i].desenhar === 'function') {
-                this.sprites[i].desenhar();
-            }
+            if (this.sprites[i] && typeof this.sprites[i].desenhar === 'function') this.sprites[i].desenhar();
         }
+        this.desenharFeedbackPortao4000();
         this.context.restore();
 
         // HUD
-        if (this.jogadorPrincipal && typeof this.jogadorPrincipal.vidas !== 'undefined') {
+        if (this.jogadorPrincipal && this.jogadorPrincipal.vidas !== undefined) {
             var ctx = this.context; ctx.save();
             if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalHeight !== 0) {
-                var xInicialCoracao = 10, yCoracao = 10;
-                var larguraCoracao = this.imgCoracaoHUD.width, alturaCoracao = this.imgCoracaoHUD.height;
-                var espacamentoCoracao = 5;
-                if (larguraCoracao === 0 || alturaCoracao === 0) { // Fallback se dimensões da imagem do coração não carregarem
+                var xIni = 10, yCor = 10, lCor = this.imgCoracaoHUD.width, aCor = this.imgCoracaoHUD.height, espCor = 5;
+                if (lCor === 0 || aCor === 0) { // Fallback
                     ctx.fillStyle = 'red'; ctx.font = '20px Arial'; var txt = "";
                     for (var c = 0; c < this.jogadorPrincipal.vidas; c++) txt += "❤ "; ctx.fillText(txt, 10, 30);
                 } else {
                     for (var k = 0; k < this.jogadorPrincipal.vidas; k++) {
-                        var xPos = xInicialCoracao + (k * (larguraCoracao + espacamentoCoracao));
-                        ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
+                        ctx.drawImage(this.imgCoracaoHUD, xIni + (k * (lCor + espCor)), yCor, lCor, aCor);
                     }
                 }
-            } else { // Fallback se imagem do coração não estiver pronta
+            } else { // Fallback
                 ctx.fillStyle = 'red'; ctx.font = '20px Arial'; var txt = "";
-                var numVidas = (this.jogadorPrincipal && typeof this.jogadorPrincipal.vidas === 'number') ? this.jogadorPrincipal.vidas : 0;
-                for (var c = 0; c < numVidas; c++) txt += "❤ "; ctx.fillText(txt, 10, 30);
+                var numV = (this.jogadorPrincipal.vidas !== undefined) ? this.jogadorPrincipal.vidas : 0;
+                for (var c = 0; c < numV; c++) txt += "❤ "; ctx.fillText(txt, 10, 30);
             }
             ctx.restore();
         }
-
-        // this.ultimoTempo = agora; // Movido para o início do proximoFrame para cálculo correto do deltaTime
-        var animacao_self = this;
-        requestAnimationFrame(function() {
-            animacao_self.proximoFrame();
-        });
+        requestAnimationFrame(() => this.proximoFrame());
     },
 
     limparTela: function() {
-        var ctx = this.context;
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
-    // A função colidemRetangulos já estava definida no seu código, mantenha-a.
-    // Se não estiver, adicione-a aqui ou em um local acessível:
-    /*
-    colidemRetangulos: function(ret1, ret2) { // Se for método da classe
-        if (!ret1 || !ret2) return false;
-        return !(ret1.x + ret1.largura < ret2.x ||
-                 ret1.x > ret2.x + ret2.largura ||
-                 ret1.y + ret1.altura < ret2.y ||
-                 ret1.y > ret2.y + ret2.altura);
-    }
-    */
 };
 
-// Se colidemRetangulos for uma função global como no seu último envio:
 function colidemRetangulos(ret1, ret2) {
     if (!ret1 || !ret2) return false;
-    // Verifica se as propriedades existem e são números antes de usar
-    const r1x = typeof ret1.x === 'number' ? ret1.x : 0;
-    const r1w = typeof ret1.largura === 'number' ? ret1.largura : 0;
-    const r1y = typeof ret1.y === 'number' ? ret1.y : 0;
-    const r1h = typeof ret1.altura === 'number' ? ret1.altura : 0;
-
-    const r2x = typeof ret2.x === 'number' ? ret2.x : 0;
-    const r2w = typeof ret2.largura === 'number' ? ret2.largura : 0;
-    const r2y = typeof ret2.y === 'number' ? ret2.y : 0;
-    const r2h = typeof ret2.altura === 'number' ? ret2.altura : 0;
-    
-    return !(r1x + r1w < r2x ||
-             r1x > r2x + r2w ||
-             r1y + r1h < r2y ||
-             r1y > r2y + r2h);
+    const r1x = ret1.x||0; const r1w = ret1.largura||0; const r1y = ret1.y||0; const r1h = ret1.altura||0;
+    const r2x = ret2.x||0; const r2w = ret2.largura||0; const r2y = ret2.y||0; const r2h = ret2.altura||0;
+    return !(r1x + r1w < r2x || r1x > r2x + r2w || r1y + r1h < r2y || r1y > r2y + r2h);
 }
+

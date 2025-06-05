@@ -25,15 +25,11 @@ function Laser(context, x, y, dirX, dirY, velocidade, canvas, animacao) { // <<-
 Laser.prototype = {
     atualizar: function(deltaTime) {
         let movimentoX = this.dirX * this.velocidade;
-        let movimentoY = this.dirY * this.velocidade;
-        // Se quiser movimento realmente baseado em deltaTime para ser independente de frame rate:
-        // movimentoX *= deltaTime; 
-        // movimentoY *= deltaTime;
-        // E a velocidade precisaria ser ajustada (ex: pixels por segundo, então velocidade * deltaTime)
-        // Por enquanto, a velocidade é pixels por frame.
+        let movimentoY = this.dirY * this.velocidade; // Como this.dirY será 0, movimentoY será 0
 
         this.x += movimentoX;
-        this.y += movimentoY;
+        this.y += movimentoY; // Efetivamente, this.y += 0; não haverá mudança em Y.
+        // ... (resto da lógica de atualização) ...
         this.distanciaPercorrida += Math.sqrt(movimentoX * movimentoX + movimentoY * movimentoY);
 
         // Descomente este log se quiser ver o laser se movendo (pode ser MUITO verboso)

@@ -4,12 +4,13 @@
     <title>JC o punidor de pecados</title>
     <meta charset="UTF-8">
     <script src="teclado.js"></script> 
-    <script src="spritesheet_jc.js"></script> 
+    <script src="spritesheet_jc.js"></script>
     <script src="laser.js"></script>
-    <script src="animacao.js"></script>
     <script src="aguabenta.js"></script>
-    <script src="jc.js"></script>
+    <script src="coracaodropado.js"></script>
     <script src="inimigo.js"></script>
+    <script src="jc.js"></script>
+    <script src="animacao.js"></script> 
     <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
@@ -28,6 +29,13 @@
         var imagensCarregadas = 0;
         var jc;
         // var inimigo1; // Vamos deixar o spawner automático cuidar disso por enquanto
+
+        teclado.disparou(85, function() { // 85 é o keyCode para a tecla 'U'
+            if (animacao) { // Verifica se animacao já foi inicializada
+            animacao.condicaoPortao4000Liberado = true;
+            console.log("CONDIÇÃO DO PORTÃO 4000 LIBERADA (via tecla U)!");
+            }
+            });
 
         function imagemCarregada() {
             imagensCarregadas++;

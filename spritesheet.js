@@ -3,9 +3,9 @@ function Spritesheet(context, imagem, linhas, colunas) {
    this.imagem = imagem; 
    this.numLinhas = linhas; 
    this.numColunas = colunas; 
-   this.intervalo = 0; 
-   this.linha = 0; 
-   this.coluna = 0; 
+   this.intervalo = 0;
+   this.linha = 0;
+   this.coluna = 0;
 } 
 Spritesheet.prototype = { 
    proximoQuadro: function() {
