@@ -6,9 +6,9 @@ var JC_ESQUERDA = 2;
 function JC(context, teclado, imagem, animacao, canvas) { // <--- ADICIONADO animacao, canvas
     this.context = context;
     this.teclado = teclado;
-    this.imagem = imagem; // Guardar a imagem
-    this.animacao = animacao; // <--- NOVA PROPRIEDADE: referência ao sistema de animação
-    this.canvas = canvas;     // <--- NOVA PROPRIEDADE: referência ao canvas
+    this.imagem = imagem; 
+    this.animacao = animacao; 
+    this.canvas = canvas;     
 
     this.x = 50; // Posição X inicial (exemplo)
     this.posicaoChao = 300;
@@ -24,15 +24,24 @@ function JC(context, teclado, imagem, animacao, canvas) { // <--- ADICIONADO ani
     this.estaMorto = false; // Flag para indicar se o JC morreu
 
     this.sheet = new Spritesheet(context, imagem, 3, 8);
-    this.sheet.intervalo = 100; // Intervalo da animação
+    this.sheet.intervalo = 120; // Intervalo da animação
 
     this.andando = false;
     this.direcao = JC_DIREITA; // JC_DIREITA (1), JC_ESQUERDA (2)
 
     // Ajustes para o tiro
-    this.largura = this.imagem.width / this.sheet.numColunas; // Largura aproximada do JC
-    this.altura = this.imagem.height / this.sheet.numLinhas; // Altura aproximada do JC
+    if (imagem.complete && imagem.naturalHeight > 0) { // Verifica se a imagem carregou
+        this.largura = imagem.width / this.sheet.numColunas;
+        this.altura = imagem.height / this.sheet.numLinhas;
+    } else {
+        this.largura = 90; 
+        this.altura = 90;  
+        console.warn("JC: Imagem não carregada no momento da criação, usando dimensões estimadas para largura/altura.");
+    }
+    console.log("JC criado com largura:", this.largura, "altura:", this.altura);
+    // ...
 }
+
 
 JC.prototype = {
     atualizar: function() {
@@ -107,7 +116,7 @@ JC.prototype = {
 
         // Ajustar yBola para sair aproximadamente do meio do personagem
         // Usamos this.altura (calculado no construtor)
-        yBola = this.y + (this.altura / 2) - 3; // O -3 é um pequeno ajuste para centralizar melhor o raio da bola
+        yBola = this.y + (this.altura / 3) - 3; // O -3 é um pequeno ajuste para centralizar melhor o raio da bola
 
         if (this.direcao == JC_DIREITA) {
             // Se JC está virado para a direita, a bola sai da frente direita

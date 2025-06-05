@@ -5,7 +5,7 @@ function Inimigo(context, x, y, jogadorAlvo, animacao, canvas) {
     this.y = y; // Posição Y do inimigo no mundo
     this.largura = 50; // Largura do inimigo para desenho e colisão
     this.altura = 50; // Altura do inimigo
-    this.cor = 'red'; // Cor para desenhar o inimigo (temporário)
+    this.cor = 'purple'; // Cor para desenhar o inimigo (temporário)
 
     this.jogadorAlvo = jogadorAlvo; // Referência ao objeto JC
     this.animacao = animacao;     // Referência ao sistema de animação (para adicionar lasers)
