@@ -1,7 +1,7 @@
-
-function AguaBenta(context, x, y, direcaoTiro, canvas, mundoLarguraRef) {
+// aguabenta.js
+function AguaBenta(context, x, y, direcaoTiro, canvas) { // Removido mundoLarguraRef não utilizado
     this.context = context;
-    // this.canvas = canvas; // Pode não ser mais necessário se usarmos mundoLarguraRef ou tempo de vida
+    this.canvas = canvas; // Pode ser útil para limites ou efeitos
     this.x = x;
     this.y = y;
     this.raio = 6;
@@ -9,30 +9,27 @@ function AguaBenta(context, x, y, direcaoTiro, canvas, mundoLarguraRef) {
     this.velocidade = 6;
     this.direcao = direcaoTiro;
     this.removivel = false;
+    this.tipo = 'aguaBenta'; // <<--- MUDANÇA/CORREÇÃO: Tipo para colisões
 
-    // --- NOVO: Para remoção baseada em distância ou limites do mundo ---
-    this.xInicial = x; // Guarda a posição x inicial
-    this.distanciaMaxima = 800; // Bola será removida após viajar esta distância (ajuste!)
-    // Alternativa: this.mundoLargura = mundoLarguraRef;
+    this.xInicial = x;
+    this.distanciaMaxima = 800;
+    this.distanciaPercorrida = 0; // <<--- ADICIONADO: Inicializar distanciaPercorrida
 }
 
 AguaBenta.prototype = {
-    atualizar: function(deltaTime) { // deltaTime vindo da Animacao
-        this.x += this.velocidade * this.direcao;
+    atualizar: function(deltaTime) {
+        let movimento = this.velocidade * this.direcao; // Movimento neste frame
+        // Se quiser movimento baseado em deltaTime:
+        // let movimento = this.velocidade * this.direcao * (deltaTime * 60); // Ajuste 60 conforme sua base de velocidade
 
-        // Marcar para remoção se viajar além da distância máxima
-        if (Math.abs(this.x - this.xInicial) > this.distanciaMaxima) {
+        this.x += movimento;
+        this.distanciaPercorrida += Math.abs(movimento); // <<--- MUDANÇA: Usar o movimento real
+
+        if (this.distanciaPercorrida > this.distanciaMaxima) {
             this.removivel = true;
         }
-
-        // OU Marcar para remoção se sair dos limites do MUNDO (se passou mundoLarguraRef)
-        // if (this.mundoLargura && (this.x < 0 || this.x > this.mundoLargura)) {
-        //     this.removivel = true;
-        // }
     },
     desenhar: function() {
-        // O método desenhar continua o mesmo, pois desenha em this.x, this.y (mundo)
-        // e o translate da Animacao cuida do resto.
         var ctx = this.context;
         ctx.save();
         ctx.beginPath();
@@ -44,5 +41,14 @@ AguaBenta.prototype = {
         ctx.stroke();
         ctx.closePath();
         ctx.restore();
+    },
+    // Adicionar método getHitboxMundo para AguaBenta
+    getHitboxMundo: function() { // <<--- MUDANÇA/CORREÇÃO: Adicionado hitbox para projéteis
+        return {
+            x: this.x - this.raio,
+            y: this.y - this.raio,
+            largura: this.raio * 2,
+            altura: this.raio * 2
+        };
     }
 };

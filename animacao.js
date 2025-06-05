@@ -1,36 +1,39 @@
-function Animacao(context, canvas) { // Precisa do canvas para obter a largura da tela
+// animacao.js
+function Animacao(context, canvas) {
     this.context = context;
-    this.canvas = canvas; // Guardamos a referência do canvas
-    this.sprites = [];    // Lista de todos os objetos a serem animados no mundo
+    this.canvas = canvas;
+    this.sprites = [];
     this.ligado = false;
-    this.ultimoTempo = 0; // Para cálculo do deltaTime
+    this.ultimoTempo = 0;
 
-    // --- Propriedades da Câmera e do Mundo ---
     this.cameraX = 0;
-    this.cameraY = 0;     // Para rolagem vertical futura, por enquanto mantemos em 0
-    this.mundoLargura = 5000; // Largura total do seu mundo/nível
-    
-    this.jogadorPrincipal = null; // O sprite que a câmera deve seguir (o JC)
-
-    // Fator de suavização da câmera
-    // Valores menores = mais suave e mais "atraso" da câmera.
-    // Valores maiores (perto de 1) = mais rápido, menos suave.
-    this.cameraSuavizacao = 0.8; // Experimente ajustar este valor!
-    this.imgCoracaoHUD = null;
+    this.cameraY = 0;
+    this.mundoLargura = 5000; // Conforme seu último HTML
+    this.jogadorPrincipal = null;
+    this.cameraSuavizacao = 0.08; // Um valor mais suave
+    this.imgCoracaoHUD = null; // Será definido após o carregamento da imagem
 }
 
 Animacao.prototype = {
-    
-    //Adiciona um novo sprite para ser gerenciado pela animação.
     novoSprite: function(sprite, ehJogadorPrincipal = false) {
+        // Log para depurar adição de sprites e seus tipos
+        console.log("[Animacao.JS novoSprite] Adicionando sprite:", sprite, "Tipo:", (sprite && sprite.tipo ? sprite.tipo : "N/A"), "É jogador principal?:", ehJogadorPrincipal);
         this.sprites.push(sprite);
         if (ehJogadorPrincipal) {
             this.jogadorPrincipal = sprite;
+            // Dá ao sprite principal uma referência à animação, se ele precisar (ex: JC para mundoLargura)
+            if (sprite && typeof sprite.animacao === 'undefined') {
+                 sprite.animacao = this;
+            }
+        }
+        // Garante que outros sprites também tenham referência à animação, se precisarem (ex: Inimigo para adicionar lasers)
+        if (sprite && typeof sprite.animacao === 'undefined') {
+             sprite.animacao = this;
         }
     },
 
     ligar: function() {
-        this.ultimoTempo = new Date().getTime(); // Inicializa o tempo para o primeiro frame
+        this.ultimoTempo = new Date().getTime();
         this.ligado = true;
         this.proximoFrame();
     },
@@ -40,119 +43,160 @@ Animacao.prototype = {
     },
 
     atualizarCamera: function() {
-        if (!this.jogadorPrincipal) return; // Se não há jogador principal, não faz nada
-
-        // Calcular a posição X ideal da câmera para centralizar o jogador
+        if (!this.jogadorPrincipal) return;
         let alvoCameraX = this.jogadorPrincipal.x - (this.canvas.width / 2);
-
-        // Interpolar suavemente a posição atual da câmera em direção ao alvo
         let novaCameraX = this.cameraX + (alvoCameraX - this.cameraX) * this.cameraSuavizacao;
-
-        // "Snap" opcional para a posição final se estiver muito perto (evita micro-movimentos)
         if (Math.abs(alvoCameraX - novaCameraX) < 0.5) {
             novaCameraX = alvoCameraX;
         }
-        
         this.cameraX = novaCameraX;
-
-        // Garantir que a câmera não ultrapasse os limites do mundo
-        // Limite esquerdo (0) e limite direito (mundoLargura - larguraDoCanvas)
         this.cameraX = Math.max(0, Math.min(this.cameraX, this.mundoLargura - this.canvas.width));
-        
     },
 
     proximoFrame: function() {
-    if (!this.ligado) return;
+        console.log("[Animacao] proximoFrame - CICLO INICIADO", new Date().getTime()); 
+        if (!this.ligado) return;
 
-    var agora = new Date().getTime();
-    var deltaTime = (agora - this.ultimoTempo) / 1000.0;
+        var agora = new Date().getTime();
+        var deltaTime = (agora - this.ultimoTempo) / 1000.0;
 
-    this.atualizarCamera();
-    this.limparTela();
+        this.atualizarCamera();
+        this.limparTela();
 
-    this.context.save();
-    this.context.translate(-this.cameraX, -this.cameraY);
+        this.context.save();
+        this.context.translate(-this.cameraX, -this.cameraY);
 
-    // Atualiza e remove sprites do mundo
-    for (var i = 0; i < this.sprites.length; i++) {
-        if (this.sprites[i].atualizar) {
-             this.sprites[i].atualizar(deltaTime);
+        // --- NOVO LOG AQUI ---
+        console.log("[Animacao] Sprites na lista para atualizar:", this.sprites.length, this.sprites);
+        // --------------------
+
+        // 1. ATUALIZA todos os sprites
+        for (var i = 0; i < this.sprites.length; i++) {
+            if (this.sprites[i] && this.sprites[i].atualizar) {
+                this.sprites[i].atualizar(deltaTime);
+            }
         }
-    }
-    this.sprites = this.sprites.filter(function(sprite) {
-        return !sprite.removivel;
-    });
 
-    // Desenha sprites do mundo
-    for (var i = 0; i < this.sprites.length; i++) {
-        if (this.sprites[i].desenhar) {
-            this.sprites[i].desenhar();
-        }
-    }
+        // 2. VERIFICAÇÃO DE COLISÕES
+        var jogador = this.jogadorPrincipal;
+        if (jogador && typeof jogador.estaVivo === 'function' && jogador.estaVivo() && typeof jogador.getHitboxMundo === 'function') {
+            var hitboxJogador = jogador.getHitboxMundo();
 
-    this.context.restore(); // Restaura o contexto para desenhar o HUD
+            for (var i = 0; i < this.sprites.length; i++) {
+                var outroSprite = this.sprites[i];
 
-    if (this.jogadorPrincipal && typeof this.jogadorPrincipal.vidas !== 'undefined') {
-    var ctx = this.context;
-    ctx.save();
+                if (!outroSprite || outroSprite === jogador || !outroSprite.getHitboxMundo || !outroSprite.tipo) {
+                    continue;
+                }
 
-    console.log('[HUD] Desenhando HUD. Vidas JC:', this.jogadorPrincipal.vidas); 
+                // A) Colisão: JC (jogador) vs. Inimigos ou Lasers de Inimigos
+                if (outroSprite.tipo === 'inimigo' || outroSprite.tipo === 'laserInimigo') {
+                    // console.log("[Animacao] Verificando colisão JC vs", outroSprite.tipo); // Log para depuração
+                    var hitboxOutro = outroSprite.getHitboxMundo();
+                    if (colidemRetangulos(hitboxJogador, hitboxOutro)) {
+                        console.log("COLISÃO DETECTADA entre JC e:", outroSprite.tipo, outroSprite);
+                        console.log("JC está invencível antes do dano?", jogador.invencivel);
+                        jogador.sofrerDano(1); // JC sofre dano
 
-    // Desenhar IMAGENS de Coração
-    if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalHeight !== 0) {
-        
-        var xInicialCoracao = 10;
-        var yCoracao = 10;
-        var larguraCoracao = this.imgCoracaoHUD.width;
-        var alturaCoracao = this.imgCoracaoHUD.height;
-        var espacamentoCoracao = 5;
-
-        if (larguraCoracao === 0 || alturaCoracao === 0) {
-            console.error("[HUD] Largura ou altura da imagem do coração é 0. A imagem pode não ter carregado corretamente.");
-        } else {
-            for (var i = 0; i < this.jogadorPrincipal.vidas; i++) {
-                var xPos = xInicialCoracao + (i * (larguraCoracao + espacamentoCoracao));
-                    try {
-                        ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
-                    } catch (e) {
-                        console.error("[HUD] Erro ao tentar desenhar a imagem do coração:", e);
+                        if (outroSprite.tipo === 'laserInimigo' && outroSprite.removivel !== undefined) {
+                            outroSprite.removivel = true; // Laser do inimigo some ao colidir
+                            console.log("Laser do inimigo removido após colisão com JC.");
+                        }
+                        // O break aqui faz o JC tomar dano de apenas UMA fonte por frame.
+                        // A invencibilidade do JC deve prevenir dano contínuo do mesmo toque.
+                        break;
                     }
                 }
+                // B) Colisão: AguaBenta do JC vs. Inimigos
+                else if (outroSprite.tipo === 'aguaBenta') {
+                    var hitboxAguaBenta = outroSprite.getHitboxMundo();
+                    // Iterar sobre os sprites novamente para encontrar inimigos
+                    for (var j = 0; j < this.sprites.length; j++) {
+                        var possivelInimigo = this.sprites[j];
+                        if (possivelInimigo && possivelInimigo.tipo === 'inimigo' && typeof possivelInimigo.getHitboxMundo === 'function') {
+                            var hitboxInimigo = possivelInimigo.getHitboxMundo();
+                            if (colidemRetangulos(hitboxAguaBenta, hitboxInimigo)) {
+                                console.log("COLISÃO: AguaBenta atingiu Inimigo!");
+                                if (typeof possivelInimigo.sofrerDano === 'function') { // Se o inimigo tiver um método sofrerDano
+                                    // possivelInimigo.sofrerDano(1); // Implemente isso em Inimigo.js
+                                    console.log("Inimigo deveria sofrer dano (implementar sofrerDano em Inimigo.js). Por enquanto, será removido.");
+                                    possivelInimigo.removivel = true; // Por enquanto, remove o inimigo
+                                } else {
+                                    possivelInimigo.removivel = true; // Remove o inimigo se não tiver sofrerDano
+                                }
+                                outroSprite.removivel = true; // AguaBenta some após atingir
+                                break; // AguaBenta atinge apenas um inimigo e some
+                            }
+                        }
+                    }
+                }
+            }
         }
-    } else {
-        // Imagem do coração NÃO está pronta ou não foi definida. Desenhando fallback de texto.
-        ctx.fillStyle = 'red';
-        ctx.font = '20px Arial';
-        var coracoesTexto = "";
-        for (var c = 0; c < this.jogadorPrincipal.vidas; c++) { coracoesTexto += "❤ "; }
-        ctx.fillText(coracoesTexto, 10, 10);
-    }
 
-    if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalHeight !== 0) {
-        var xInicialCoracao = 10;
-        var yCoracao = 10;
-        var larguraCoracao = this.imgCoracaoHUD.width;
-        var alturaCoracao = this.imgCoracaoHUD.height;
-        var espacamentoCoracao = 5;
+        // Remove sprites marcados como "removivel"
+        this.sprites = this.sprites.filter(function(sprite) {
+            return sprite && !sprite.removivel;
+        });
 
-        // LOOP DA IMPLEMENTAÇÃO DOS CORAÇÕES
-        for (var i = 0; i < this.jogadorPrincipal.vidas; i++) {
-            var xPos = xInicialCoracao + (i * (larguraCoracao + espacamentoCoracao));
-            ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
+        // DESENHA todos os sprites restantes
+        for (var i = 0; i < this.sprites.length; i++) {
+            if (this.sprites[i] && this.sprites[i].desenhar) {
+                this.sprites[i].desenhar();
+            }
         }
-    }
 
-    ctx.restore();
-}
-    // --- FIM DA SEÇÃO DO HUD ---
+        this.context.restore(); // Restaura o contexto para desenhar o HUD
 
-    this.ultimoTempo = agora;
+        // --- HUD ---
+        if (this.jogadorPrincipal && typeof this.jogadorPrincipal.vidas !== 'undefined') {
+            var ctx = this.context;
+            ctx.save();
+            
+            // Log para depurar o valor de vidas que o HUD está usando
+            console.log('[ANIMACAO.JS - HUD] Desenhando HUD. Vidas do jogadorPrincipal:', this.jogadorPrincipal.vidas, 'Esta Morto:', this.jogadorPrincipal.estaMorto);
 
-    var animacao = this;
-    requestAnimationFrame(function() {
-        animacao.proximoFrame();
-    });
+            // Desenhar IMAGENS de Coração
+            if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalHeight !== 0) {
+                var xInicialCoracao = 10;
+                var yCoracao = 10;
+                var larguraCoracao = this.imgCoracaoHUD.width;
+                var alturaCoracao = this.imgCoracaoHUD.height;
+                var espacamentoCoracao = 5;
 
+                if (larguraCoracao === 0 || alturaCoracao === 0) {
+                    console.error("[HUD] Imagem do coração com dimensão 0. Verifique o carregamento ou o arquivo de imagem.");
+                    // Fallback para texto se a imagem do coração falhou em dimensões
+                    ctx.fillStyle = 'red'; ctx.font = '20px Arial';
+                    var coracoesTexto = "";
+                    for (var c = 0; c < this.jogadorPrincipal.vidas; c++) { coracoesTexto += "❤ "; }
+                    ctx.fillText(coracoesTexto, 10, 10);
+                } else {
+                    for (var i = 0; i < this.jogadorPrincipal.vidas; i++) {
+                        var xPos = xInicialCoracao + (i * (larguraCoracao + espacamentoCoracao));
+                        try {
+                            ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
+                        } catch (e) {
+                            console.error("[HUD] Erro ao tentar desenhar a imagem do coração:", e);
+                        }
+                    }
+                }
+            } else { // Fallback se imgCoracaoHUD não está pronta ou não foi definida
+                // console.log("[HUD] Imagem do coração não pronta/definida. Usando fallback de texto.");
+                ctx.fillStyle = 'red'; ctx.font = '20px Arial';
+                var numVidas = (this.jogadorPrincipal && typeof this.jogadorPrincipal.vidas === 'number') ? this.jogadorPrincipal.vidas : 0;
+                var coracoesTexto = "";
+                for (var c = 0; c < numVidas; c++) { coracoesTexto += "❤ "; }
+                ctx.fillText(coracoesTexto, 10, 10);
+            }
+            ctx.restore();
+        }
+        // --- FIM HUD ---
+
+        this.ultimoTempo = agora;
+        var animacao_self = this;
+        requestAnimationFrame(function() {
+            animacao_self.proximoFrame();
+        });
     },
 
     limparTela: function() {
@@ -160,3 +204,12 @@ Animacao.prototype = {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     }
 };
+
+// Função colidemRetangulos (deve estar acessível, pode ficar no final deste arquivo ou em utils.js)
+function colidemRetangulos(ret1, ret2) {
+    if (!ret1 || !ret2) return false; // Verificação de segurança
+    return !(ret1.x + ret1.largura < ret2.x ||
+             ret1.x > ret2.x + ret2.largura ||
+             ret1.y + ret1.altura < ret2.y ||
+             ret1.y > ret2.y + ret2.altura);
+}

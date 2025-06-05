@@ -3,13 +3,13 @@
 <head>
     <title>JC o punidor de pecados</title>
     <meta charset="UTF-8">
-    <script src="spritesheet_jc.js"></script>
-    <script src="animacao.js"></script>
-    <script src="teclado.js"></script>
+    <script src="teclado.js"></script> 
+    <script src="spritesheet_jc.js"></script> 
+    <script src="animacao.js"></script> 
     <script src="aguabenta.js"></script>
+    <script src="laser.js"></script>
     <script src="jc.js"></script>
     <script src="inimigo.js"></script>
-    <script src="laser.js"></script>
     <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
@@ -18,100 +18,106 @@
         var canvas = document.getElementById('canvas_jc');
         var context = canvas.getContext('2d');
 
-        // Constantes de Tecla (como antes)
-        var SETA_CIMA = 38;
-        var ESPACO = 32;
-        var TECLA_W = 87;
-        // ... outras constantes ...
+        // Constantes de tecla agora são definidas em teclado.js e são globais
+        // Certifique-se que teclado.js é carregado antes deste script ou defina-as aqui
 
         var teclado = new Teclado(document);
         var animacao = new Animacao(context, canvas);
 
         var imgJC = new Image();
         var imgCoracao = new Image();
+        var imgInimigoPolvo = new Image();
 
-        var imagensParaCarregar = 2;
+        var imagensParaCarregar = 3;
         var imagensCarregadas = 0;
+
+        var jc;
+        var inimigo1;
 
         function imagemCarregada() {
             imagensCarregadas++;
-            // Log para ver o status de carregamento
-            console.log('Uma imagem tentou carregar. Total agora:', imagensCarregadas, 'de', imagensParaCarregar);
-
-            if (this.src.includes('vida-coracao') && this.naturalHeight === 0) {
-                console.error('IMAGEM DO CORAÇÃO PARECE NÃO TER CARREGADO CORRETAMENTE (altura 0):', this.src);
-            } else if (this.src.includes('JC_alpha') && this.naturalHeight === 0) {
-                console.error('IMAGEM DO JC PARECE NÃO TER CARREGADO CORRETAMENTE (altura 0):', this.src);
+            // console.log('Imagem carregada. Total:', imagensCarregadas, '/', imagensParaCarregar);
+            
+            if (this.naturalHeight === 0 && this.src) { // Checagem mais genérica de erro de carregamento
+                 console.error('IMAGEM PARECE NÃO TER CARREGADO CORRETAMENTE (altura 0):', this.src);
             }
 
+            if (imagensCarregadas === imagensParaCarregar) {
+                let jcRealmenteCarregada = imgJC.complete && imgJC.naturalHeight !== 0;
+                let coracaoRealmenteCarregado = imgCoracao.complete && imgCoracao.naturalHeight !== 0;
+                let inimigoRealmenteCarregado = imgInimigoPolvo.complete && imgInimigoPolvo.naturalHeight !== 0;
 
-                if (imagensCarregadas === imagensParaCarregar) {
-                    console.log("TODAS AS IMAGENS REGISTRADAS COMO CARREGADAS. Verificando se realmente carregaram...");
+                if (jcRealmenteCarregada && coracaoRealmenteCarregado && inimigoRealmenteCarregado) {
+                    console.log("CONFIRMADO: Todas as imagens carregadas. Iniciando jogo...");
+                    
+                    animacao.imgCoracaoHUD = imgCoracao;
+                    
+                    jc = new JC(context, teclado, imgJC, animacao, canvas);
+                    animacao.novoSprite(jc, true);
 
-                    let jcRealmenteCarregada = imgJC.complete && imgJC.naturalHeight !== 0;
-                    let coracaoRealmenteCarregado = imgCoracao.complete && imgCoracao.naturalHeight !== 0;
+                    // --- ADICIONE ESTES LOGS AO REDOR DA CRIAÇÃO DO INIMIGO ---
+                    console.log("[HTML] Preparando para criar Inimigo1...");
+                    console.log("[HTML] imgInimigoPolvo está 'complete'?", imgInimigoPolvo.complete, "naturalHeight:", imgInimigoPolvo.naturalHeight);
+                    console.log("[HTML] Parâmetros para Inimigo: context?", !!context, "x:700, y:", jc.posicaoChao, "jc?", !!jc, "animacao?", !!animacao, "canvas?", !!canvas, "imgInimigo?", !!imgInimigoPolvo, "linhas:", linhasPolvo, "colunas:", colunasPolvo);
 
-                    if(jcRealmenteCarregada && coracaoRealmenteCarregado){
-                        console.log("CONFIRMADO: Imagens JC e Coração carregadas com sucesso. Iniciando animação.");
-                        animacao.imgCoracaoHUD = imgCoracao;
-                        animacao.mundoLargura = 2000;
-                        animacao.ligar();
-                    } else {
-                        if(!jcRealmenteCarregada) console.error("ERRO FATAL: Imagem JC não carregou de verdade.");
-                        if(!coracaoRealmenteCarregado) console.error("ERRO FATAL: Imagem do Coração não carregou de verdade.");
+                    try {
+                        inimigo1 = new Inimigo(context, 700, jc.posicaoChao, jc, animacao, canvas, imgInimigoPolvo, linhasPolvo, colunasPolvo);
+                        console.log("[HTML] Inimigo1 CRIADO com sucesso:", inimigo1); // Verifica se este log aparece e o que 'inimigo1' é.
+
+                        if (inimigo1 && typeof inimigo1.atualizar === 'function') { // Verifica se o inimigo tem o método atualizar
+                            animacao.novoSprite(inimigo1); // O log dentro de novoSprite já nos dirá se foi adicionado
+                        } else {
+                            console.error("[HTML] FALHA AO CRIAR inimigo1 ou inimigo1 não tem método atualizar!", inimigo1);
+                        }
+                    } catch (e) {
+                        console.error("[HTML] ERRO CRÍTICO ao tentar criar 'new Inimigo':", e);
                     }
+                    //
+
+                    let linhasPolvo = 2; // Exemplo: AJUSTE PARA SEU SPRITE DE POLVO
+                    let colunasPolvo = 4; // Exemplo: AJUSTE PARA SEU SPRITE DE POLVO
+                    inimigo1 = new Inimigo(context, 700, jc.posicaoChao, jc, animacao, canvas, imgInimigoPolvo, linhasPolvo, colunasPolvo);
+                    animacao.novoSprite(inimigo1);
+
+                    // Configura listeners de teclado
+                    teclado.disparou(SETA_CIMA, jc.pular.bind(jc));
+                    teclado.disparou(TECLA_W, jc.pular.bind(jc));
+                    teclado.disparou(ESPACO, jc.atirar.bind(jc));
+
+                    teclado.disparou(TECLA_P, function() {
+                        if (jc && jc.estaVivo()) { jc.sofrerDano(1); }
+                    });
+                    
+                    // <<--- MUDANÇA/CORREÇÃO: Listener para TECLA_R adicionado
+                    teclado.disparou(TECLA_R, function() {
+                        if (jc && typeof jc.restaurarVidas === 'function') {
+                            console.log("[HTML] Tecla R pressionada! Restaurando vidas do JC.");
+                            jc.restaurarVidas();
+                        }
+                    });
+                    
+                    animacao.mundoLargura = 5000;
+                    animacao.ligar();
+                } else {
+                    let erros = "";
+                    if(!jcRealmenteCarregada) erros += "Imagem JC não carregou. ";
+                    if(!coracaoRealmenteCarregado) erros += "Imagem Coração não carregou. ";
+                    if(!inimigoRealmenteCarregado) erros += "Imagem Inimigo não carregou. ";
+                    console.error("ERRO FATAL:", erros);
+                    alert("Erro ao carregar imagens essenciais. Verifique o console.");
                 }
             }
+        }
 
-        var jc = new JC(context, teclado, imgJC, animacao, canvas);
-        console.log("INSTÂNCIA DE JC CRIADA:", jc);
-        animacao.novoSprite(jc, true);
-        
-        // --- CRIAR E ADICIONAR UM INIMIGO ---
-        var inimigo1 = new Inimigo(context, 700, jc.posicaoChao, jc, animacao, canvas);
-        animacao.novoSprite(inimigo1); // Inimigo é adicionado UMA VEZ aqui
+        imgJC.onload = imagemCarregada; imgCoracao.onload = imagemCarregada; imgInimigoPolvo.onload = imagemCarregada;
+        imgJC.onerror = function() { console.error("Erro carregando imgJC:", imgJC.src); imagemCarregada(); };
+        imgCoracao.onerror = function() { console.error("Erro carregando imgCoracao:", imgCoracao.src); imagemCarregada(); };
+        imgInimigoPolvo.onerror = function() { console.error("Erro carregando imgInimigoPolvo:", imgInimigoPolvo.src); imagemCarregada(); };
 
-        // Configurações de teclado (como antes)
-        teclado.disparou(SETA_CIMA, jc.pular.bind(jc));
-        teclado.disparou(TECLA_W, jc.pular.bind(jc));
-        teclado.disparou(ESPACO, jc.atirar.bind(jc));
-
-        var TECLA_P = 80;
-            teclado.disparou(TECLA_P, function() {
-                
-                if (jc) { // Verifica se jc existe primeiro
-                    console.log('[HTML - Tecla P] Verificando JC. Vidas:', jc.vidas, 'Esta Morto:', jc.estaMorto, 'Resultado de estaVivo():', jc.estaVivo());
-                } else {
-                    console.error('[HTML - Tecla P] Objeto jc NÃO existe neste ponto!');
-                    return; // Sai se jc não existe
-                }
-                // ---------------------
-
-                if (jc && typeof jc.estaVivo === 'function' && jc.estaVivo()) {
-                    console.log('[HTML - Tecla P] Condição VERDADEIRA. Chamando jc.sofrerDano(1)');
-                    jc.sofrerDano(1);
-                } else if (jc) { // Esta é a linha que está sendo executada segundo seu log anterior
-                    console.log('[HTML - Tecla P] Condição FALSA. Mensagem: JC já morreu ou não pode sofrer dano.');
-                }
-            });
-
-        imgJC.onload = imagemCarregada;
-        imgCoracao.onload = imagemCarregada;
-
-        imgJC.onerror = function() {
-            console.error("ERRO no imgJC.onerror: Falha ao carregar IMAGEM JC! Caminho:", imgJC.src);
-            imagemCarregada(); // Chama para não bloquear o contador, mas o erro acima indicará o problema
-        };
-        imgCoracao.onerror = function() {
-            console.error("ERRO no imgCoracao.onerror: Falha ao carregar IMAGEM DO CORAÇÃO! Caminho:", imgCoracao.src);
-            imagemCarregada(); // Chama para não bloquear o contador
-        };
-
-        console.log('Definindo src para imgJC:', 'img/JC_alpha.png');
         imgJC.src = 'img/JC_alpha.png';
-        console.log('Definindo src para imgCoracao:', 'img/vida-coracao.png'); // CONFIRME ESTE CAMINHO
-        imgCoracao.src = 'img/vida-coracao.png'; // CONFIRME ESTE CAMINHO
-
+        imgCoracao.src = 'img/vida-coracao.png';
+        imgInimigoPolvo.src = 'img/inimigo_polvo.png';
+        
     </script>
 </body>
 </html>

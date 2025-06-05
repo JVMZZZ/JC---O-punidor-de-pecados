@@ -1,70 +1,70 @@
-// Laser.js
-function Laser(context, x, y, dirX, dirY, velocidade, canvas) {
+// laser.js
+// Adicionado 'animacao' ao construtor para que o laser possa conhecer o mundoLargura
+function Laser(context, x, y, dirX, dirY, velocidade, canvas, animacao) { // <<--- ADICIONADO animacao
+    console.log("[Laser.JS Construtor] Criando Laser. x:", x.toFixed(1), "y:", y.toFixed(1), "dirX:", dirX.toFixed(2), "dirY:", dirY.toFixed(2), "vel:", velocidade); // LOG 8
     this.context = context;
-    this.canvas = canvas; // Para verificar limites do mundo/tela
-    this.x = x;       // Posição X inicial
-    this.y = y;       // Posição Y inicial
-    this.dirX = dirX; // Componente X da direção normalizada do movimento
-    this.dirY = dirY; // Componente Y da direção normalizada do movimento
+    this.canvas = canvas;
+    this.animacao = animacao; // <<--- ARMAZENANDO animacao
+    this.x = x;
+    this.y = y;
+    this.dirX = dirX;
+    this.dirY = dirY;
     this.velocidade = velocidade;
     
-    this.largura = 15; // Largura do laser
-    this.altura = 3;  // Altura do laser
+    this.largura = 15;
+    this.altura = 3;
     this.cor = 'orange';
 
-    this.removivel = false; // Para ser removido pela classe Animacao
+    this.removivel = false;
+    this.tipo = 'laserInimigo';
     
-    // Para remoção após certa distância ou tempo (opcional)
-    this.distanciaMax = 1000; // Ex: Laser se autodestrói após 1000 pixels
+    this.distanciaMaxima = 1000;
     this.distanciaPercorrida = 0;
 }
 
 Laser.prototype = {
     atualizar: function(deltaTime) {
-        // Move o laser
-        let movimentoX = this.dirX * this.velocidade; // * deltaTime se quiser movimento baseado em tempo real
-        let movimentoY = this.dirY * this.velocidade; // * deltaTime
-        
+        let movimentoX = this.dirX * this.velocidade;
+        let movimentoY = this.dirY * this.velocidade;
+        // Se quiser movimento realmente baseado em deltaTime para ser independente de frame rate:
+        // movimentoX *= deltaTime; 
+        // movimentoY *= deltaTime;
+        // E a velocidade precisaria ser ajustada (ex: pixels por segundo, então velocidade * deltaTime)
+        // Por enquanto, a velocidade é pixels por frame.
+
         this.x += movimentoX;
         this.y += movimentoY;
-        this.distanciaPercorrida += Math.sqrt(movimentoX*movimentoX + movimentoY*movimentoY);
+        this.distanciaPercorrida += Math.sqrt(movimentoX * movimentoX + movimentoY * movimentoY);
 
-        // Marcar para remoção se sair muito da tela ou atingir distância máxima
-        // (Verificação simples de limites, pode ser melhorada com os limites do MUNDO da Animacao)
-        if (this.distanciaPercorrida > this.distanciaMax ||
-            this.x < -this.largura || this.x > this.canvas.width + this.largura || // Uma verificação básica de tela
+        // Descomente este log se quiser ver o laser se movendo (pode ser MUITO verboso)
+        // console.log("[Laser.atualizar] Posição Laser: (", this.x.toFixed(1), ",", this.y.toFixed(1), ") Dist Percorrida:", this.distanciaPercorrida.toFixed(1)); // LOG 9
+
+        // Lógica de remoção
+        let mundoLarguraAtual = (this.animacao && this.animacao.mundoLargura) ? this.animacao.mundoLargura : this.canvas.width;
+        if (this.distanciaPercorrida > this.distanciaMaxima ||
+            this.x < -this.largura || this.x > mundoLarguraAtual + this.largura || // Usa mundoLargura se disponível
             this.y < -this.altura || this.y > this.canvas.height + this.altura) {
             this.removivel = true;
-            // console.log("Laser marcado para remoção");
+            console.log("[Laser.atualizar] Laser marcado para remoção. x:", this.x.toFixed(1) , "DistPerc:", this.distanciaPercorrida.toFixed(1)); // LOG 10
         }
-
-        // --- LÓGICA DE COLISÃO COM O JOGADOR (JC) ---
-        // Precisamos de uma referência ao jogador. A forma mais fácil é se a classe Animacao
-        // passar o jogador para o método atualizar dos sprites, ou se o Laser tiver acesso global ao jogador.
-        // Por enquanto, vamos deixar um placeholder. A colisão será o próximo passo.
-        // if (this.colidiuCom(this.animacao.jogadorPrincipal)) { // Se tiver acesso ao jogador via animacao
-        //    this.animacao.jogadorPrincipal.sofrerDano(1);
-        //    this.removivel = true;
-        // }
+        // A colisão do Laser com o JC é verificada em animacao.js
     },
 
     desenhar: function() {
+        // Descomente este log se quiser ver o laser sendo desenhado (pode ser MUITO verboso)
+        // console.log("[Laser.desenhar] Desenhando Laser em x:", this.x.toFixed(1), "y:", this.y.toFixed(1)); // LOG 11
         var ctx = this.context;
         ctx.save();
         ctx.fillStyle = this.cor;
-        
-        // Desenha um retângulo simples para o laser
-        // Para um laser que rotaciona com a direção, seria mais complexo (usando ctx.rotate)
-        ctx.fillRect(this.x - this.largura/2, this.y - this.altura/2, this.largura, this.altura);
-        
+        ctx.fillRect(this.x - this.largura / 2, this.y - this.altura / 2, this.largura, this.altura);
         ctx.restore();
+    },
+    getHitboxMundo: function() {
+        return {
+            x: this.x - this.largura / 2,
+            y: this.y - this.altura / 2,
+            largura: this.largura,
+            altura: this.altura
+        };
     }
-
-    // Método de colisão (exemplo simples de colisão retangular)
-    // colidiuCom: function(outroSprite) {
-    //     return (this.x < outroSprite.x + outroSprite.largura &&
-    //             this.x + this.largura > outroSprite.x &&
-    //             this.y < outroSprite.y + outroSprite.altura &&
-    //             this.y + this.altura > outroSprite.y);
-    // }
 };
