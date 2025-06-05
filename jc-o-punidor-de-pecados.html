@@ -3,12 +3,13 @@
 <head>
     <title>JC o punidor de pecados</title>
     <meta charset="UTF-8">
-    <script src="teclado.js"></script> 
-    <script src="spritesheet_jc.js"></script>
+    <script src="teclado.js"></script>
+    <script src="spritesheet_jc.js"></script> 
     <script src="laser.js"></script>
     <script src="aguabenta.js"></script>
     <script src="coracaodropado.js"></script>
     <script src="inimigo.js"></script>
+    <script src="boss.js"></script> 
     <script src="jc.js"></script>
     <script src="animacao.js"></script> 
     <link rel="stylesheet" href="src/style.css">
@@ -18,120 +19,126 @@
     <script>
         var canvas = document.getElementById('canvas_jc');
         var context = canvas.getContext('2d');
-        var teclado = new Teclado(document);
+        var teclado = new Teclado(document); // 'document' é o elemento correto para eventos de teclado globais
         var animacao = new Animacao(context, canvas);
 
         var imgJC = new Image();
         var imgCoracao = new Image();
         var imgInimigoPolvo = new Image();
+        var imgBossAsset = new Image(); // Imagem para o Boss
 
-        var imagensParaCarregar = 3;
+        var imagensParaCarregar = 4; // JC, Coracao, InimigoPolvo, BossAsset
         var imagensCarregadas = 0;
-        var jc;
-        // var inimigo1; // Vamos deixar o spawner automático cuidar disso por enquanto
-
-        teclado.disparou(85, function() { // 85 é o keyCode para a tecla 'U'
-            if (animacao) { // Verifica se animacao já foi inicializada
-            animacao.condicaoPortao4000Liberado = true;
-            console.log("CONDIÇÃO DO PORTÃO 4000 LIBERADA (via tecla U)!");
-            }
-            });
+        var jc; // Instância do jogador será criada após o carregamento das imagens
 
         function imagemCarregada() {
             imagensCarregadas++;
-            // console.log('Uma imagem tentou carregar. Total agora:', imagensCarregadas, 'de', imagensParaCarregar, this.src);
+            // console.log(`Imagem ${this.src} processada (onload/onerror). Total: ${imagensCarregadas}/${imagensParaCarregar}`);
             
-            if (this.naturalHeight === 0 && this.complete) {
-                 console.error('IMAGEM PARECE NÃO TER CARREGADO CORRETAMENTE (altura 0):', this.src);
+            // Verifica se a imagem carregou com erro (ex: altura 0 mas 'complete' é true)
+            if (this.complete && this.naturalHeight === 0 && this.src) {
+                console.error('IMAGEM PARECE NÃO TER CARREGADO CORRETAMENTE (altura 0):', this.src);
             }
 
             if (imagensCarregadas === imagensParaCarregar) {
-                // console.log("TODAS AS IMAGENS REGISTRADAS COMO 'PROCESSADAS'. Verificando integridade...");
-                
+                console.log("Todas as imagens foram processadas (onload/onerror). Verificando integridade final...");
+
+                // Declara e inicializa as variáveis de verificação AQUI, ANTES de usá-las.
                 let jcRealmenteCarregada = imgJC.complete && imgJC.naturalHeight !== 0;
                 let coracaoRealmenteCarregado = imgCoracao.complete && imgCoracao.naturalHeight !== 0;
                 let inimigoRealmenteCarregado = imgInimigoPolvo.complete && imgInimigoPolvo.naturalHeight !== 0;
+                let bossRealmenteCarregado = imgBossAsset.complete && imgBossAsset.naturalHeight !== 0;
 
-                if (jcRealmenteCarregada && coracaoRealmenteCarregado && inimigoRealmenteCarregado) {
+                if (jcRealmenteCarregada && coracaoRealmenteCarregado && inimigoRealmenteCarregado && bossRealmenteCarregado) {
                     console.log("CONFIRMADO: Todas as imagens principais carregadas com sucesso. Iniciando componentes do jogo...");
                     
+                    // Configura a instância de animação com as imagens carregadas
                     animacao.imgCoracaoHUD = imgCoracao;
+                    animacao.imgInimigo = imgInimigoPolvo;
+                    animacao.imgInimigoLinhas = 2;  // Ajuste conforme sua spritesheet do inimigo polvo
+                    animacao.imgInimigoColunas = 4; // Ajuste
+                    animacao.imgBoss = imgBossAsset; 
                     
-                    // ================================================================
-                    // ========= ADICIONE ESTAS LINHAS IMPORTANTES AQUI ↓ =============
-                    // ================================================================
-                    animacao.imgInimigo = imgInimigoPolvo; // Atribui a imagem do polvo carregada
-                    
-                    // !!! AJUSTE OS VALORES DE LINHAS E COLUNAS ABAIXO PARA A SUA IMAGEM 'inimigo_polvo.png' !!!
-                    animacao.imgInimigoLinhas = 2;  // Quantas linhas tem sua spritesheet do inimigo polvo?
-                    animacao.imgInimigoColunas = 4; // Quantas colunas (quadros por linha)?
-                    
-                    console.log("DEFINIDO PARA SPAWNER -> animacao.imgInimigo:", (animacao.imgInimigo ? animacao.imgInimigo.src : "null"), "Linhas:", animacao.imgInimigoLinhas, "Colunas:", animacao.imgInimigoColunas);
-                    // ================================================================
-                    // ========= FIM DAS LINHAS A ADICIONAR ↑ =========================
-                    // ================================================================
-                    
+                    // Define a largura do mundo na animação (pode também estar no construtor de Animacao)
+                    animacao.mundoLargura = 5000; 
+
+                    // Cria a instância do jogador (JC)
+                    // Garanta que a classe Spritesheet esteja definida (geralmente em spritesheet_jc.js)
+                    if (typeof Spritesheet === 'undefined') {
+                        console.error("ERRO CRÍTICO: Classe Spritesheet não está definida. Verifique a inclusão do script spritesheet_jc.js ou onde ela é definida.");
+                        alert("Erro crítico: Classe Spritesheet não encontrada. O jogo não pode iniciar.");
+                        return; // Impede a continuação
+                    }
                     jc = new JC(context, teclado, imgJC, animacao, canvas);
-                    // console.log("INSTÂNCIA DE JC CRIADA:", jc); // Log já existe
                     animacao.novoSprite(jc, true); // jc é o jogador principal
 
-                    // Removi a criação manual do inimigo1 para deixar o spawner automático trabalhar.
-                    // Se quiser um inimigo inicial, pode adicionar aqui, mas garanta que use
-                    // as mesmas informações de spritesheet que o spawner usará ou ajuste conforme necessário.
-
-                    teclado.disparou(SETA_CIMA, jc.pular.bind(jc));
-                    teclado.disparou(TECLA_W, jc.pular.bind(jc));
-                    teclado.disparou(ESPACO, jc.atirar.bind(jc));
+                    // Configura os listeners de teclado para as ações do JC
+                    teclado.disparou(SETA_CIMA, function() { if(jc) jc.pular(); }); // Adicionado if(jc) para segurança
+                    teclado.disparou(TECLA_W, function() { if(jc) jc.pular(); });
+                    teclado.disparou(ESPACO, function() { if(jc) jc.atirar(); });
                     teclado.disparou(TECLA_P, function() {
-                        if (jc && !jc.estaMorto && typeof jc.receberDano === 'function') { jc.receberDano(); }
+                        if (jc && !jc.estaMorto && typeof jc.receberDano === 'function') { 
+                            jc.receberDano(); 
+                        }
                     });
                     teclado.disparou(TECLA_R, function() {
-                        if (jc && typeof jc.restaurarVidas === 'function') { jc.restaurarVidas(); }
+                        if (jc && typeof jc.restaurarVidas === 'function') { 
+                            jc.restaurarVidas(); 
+                        }
                     });
+                    // Tecla U para testar a liberação do portão (OPCIONAL - remova se a condição de abates já estiver funcionando)
+                    // teclado.disparou(85 /* U */, function() { 
+                    //     if (animacao && !animacao.condicaoPortao4000Liberado) {
+                    //         animacao.condicaoPortao4000Liberado = true;
+                    //         console.log("CONDIÇÃO DO PORTÃO 4000 LIBERADA MANUALMENTE (via tecla U)!");
+                    //     }
+                    // });
                     
-                    animacao.mundoLargura = 5000;
-
-                    // Seus logs de diagnóstico (eles já estão no seu código)
                     console.log("--- DIAGNÓSTICO ANTES DE ANIMACAO.LIGAR() ---");
-                    console.log("1. animacao.jogadorPrincipal:", animacao.jogadorPrincipal);
-                    if (animacao.jogadorPrincipal) { console.log("   Tipo de jogadorPrincipal:", animacao.jogadorPrincipal.tipo); } 
-                    else { console.log("   ---> animacao.jogadorPrincipal está NULO ou INDEFINIDO!"); }
-                    console.log("2. animacao.imgInimigo:", animacao.imgInimigo);
-                    if (animacao.imgInimigo) {
-                        console.log("   animacao.imgInimigo.complete:", animacao.imgInimigo.complete);
-                        console.log("   animacao.imgInimigo.naturalHeight:", animacao.imgInimigo.naturalHeight);
-                        console.log("   animacao.imgInimigo.src:", animacao.imgInimigo.src);
-                    } else { console.log("   ---> animacao.imgInimigo está NULO ou INDEFINIDO!"); }
+                    console.log("1. animacao.jogadorPrincipal:", animacao.jogadorPrincipal ? animacao.jogadorPrincipal.tipo : "NULO");
+                    console.log("2. animacao.imgInimigo:", animacao.imgInimigo ? animacao.imgInimigo.src : "NULO");
+                    console.log("   animacao.imgInimigo.complete:", animacao.imgInimigo ? animacao.imgInimigo.complete : "N/A");
+                    console.log("   animacao.imgInimigo.naturalHeight:", animacao.imgInimigo ? animacao.imgInimigo.naturalHeight : "N/A");
                     console.log("3. animacao.imgInimigoLinhas:", animacao.imgInimigoLinhas);
                     console.log("4. animacao.imgInimigoColunas:", animacao.imgInimigoColunas);
+                    console.log("5. animacao.imgBoss:", animacao.imgBoss ? animacao.imgBoss.src : "NULO");
+                    console.log("   animacao.imgBoss.complete:", animacao.imgBoss ? animacao.imgBoss.complete : "N/A");
+                    console.log("   animacao.imgBoss.naturalHeight:", animacao.imgBoss ? animacao.imgBoss.naturalHeight : "N/A");
                     console.log("--- FIM DO DIAGNÓSTICO ---");
 
-                    animacao.ligar();
+                    animacao.ligar(); // Inicia o loop do jogo
+
                 } else {
-                    let erros = "";
-                    if(!jcRealmenteCarregada) erros += "Imagem JC não carregou. ";
-                    if(!coracaoRealmenteCarregado) erros += "Imagem Coração não carregou. ";
-                    if(!inimigoRealmenteCarregado) erros += "Imagem Inimigo Polvo não carregou. ";
-                    console.error("ERRO FATAL NO CARREGAMENTO DE IMAGENS:", erros);
-                    alert("Erro ao carregar imagens essenciais. Verifique o console (F12).");
+                    // Monta a mensagem de erro se alguma imagem falhou em carregar corretamente
+                    let erros = "ERRO FATAL NO CARREGAMENTO DE IMAGENS ESSENCIAIS: ";
+                    if (!jcRealmenteCarregada) erros += "Imagem JC falhou. ";
+                    if (!coracaoRealmenteCarregado) erros += "Imagem Coração falhou. ";
+                    if (!inimigoRealmenteCarregado) erros += `Imagem Inimigo Polvo (${imgInimigoPolvo.src}) falhou. `;
+                    if (!bossRealmenteCarregado) erros += `Imagem Boss (${imgBossAsset.src}) falhou. `;
+                    console.error(erros);
+                    alert(erros + "Verifique o console (F12) para mais detalhes e os caminhos das imagens.");
                 }
             }
         }
 
+        // Associa a função imagemCarregada aos eventos onload e onerror de CADA imagem
+        // O .call(this) no onerror é para manter o contexto de 'this' como a imagem dentro de imagemCarregada
         imgJC.onload = imagemCarregada;
         imgCoracao.onload = imagemCarregada;
         imgInimigoPolvo.onload = imagemCarregada;
+        imgBossAsset.onload = imagemCarregada;
 
-        imgJC.onerror = function() { console.error("ERRO no imgJC.onerror: Falha ao carregar IMAGEM JC! Caminho:", imgJC.src); imagemCarregada(); };
-        imgCoracao.onerror = function() { console.error("ERRO no imgCoracao.onerror: Falha ao carregar IMAGEM DO CORAÇÃO! Caminho:", imgCoracao.src); imagemCarregada(); };
-        imgInimigoPolvo.onerror = function() { console.error("MAIN: ERRO AO CARREGAR IMAGEM DO INIMIGO POLVO! Caminho:", imgInimigoPolvo.src); imagemCarregada(); };
+        imgJC.onerror = function() { console.error("ERRO AO CARREGAR imgJC:", imgJC.src); imagemCarregada.call(imgJC); };
+        imgCoracao.onerror = function() { console.error("ERRO AO CARREGAR imgCoracao:", imgCoracao.src); imagemCarregada.call(imgCoracao); };
+        imgInimigoPolvo.onerror = function() { console.error("ERRO AO CARREGAR imgInimigoPolvo:", imgInimigoPolvo.src); imagemCarregada.call(imgInimigoPolvo); };
+        imgBossAsset.onerror = function() { console.error("ERRO AO CARREGAR imgBossAsset:", imgBossAsset.src); imagemCarregada.call(imgBossAsset); };
 
-        // console.log('Definindo src para imgJC:', 'img/JC_alpha.png'); // Logs já existem
+        // Define os caminhos (src) para as imagens para iniciar o carregamento
+        // CERTIFIQUE-SE QUE OS CAMINHOS ESTÃO CORRETOS E AS IMAGENS EXISTEM NESSES LOCAIS!
         imgJC.src = 'img/JC_alpha.png';
-        // console.log('Definindo src para imgCoracao:', 'img/vida-coracao.png');
         imgCoracao.src = 'img/vida-coracao.png';
-        // console.log('Definindo src para imgInimigoPolvo:', 'img/inimigo_polvo.png');
-        imgInimigoPolvo.src = 'img/inimigo_polvo.png';
+        imgInimigoPolvo.src = 'img/inimigo_polvo.png';// Nome da sua imagem de inimigo
+        imgBossAsset.src = 'img/boss_mestre_do_caos.png';// Nome da sua imagem de boss
         
     </script>
 </body>

@@ -14,7 +14,7 @@ function JC(context, teclado, imagem, animacao, canvas) {
     this.x = 50;
     this.posicaoChao = 300; // Ajuste conforme a altura do seu personagem e chão
     this.y = this.posicaoChao;
-    this.alturaPulo = 80;
+    this.alturaPulo = 100;
     this.duracaoPuloMs = 500;
     this.estaPulando = false;
     this.velocidade = 2; // Ajuste conforme necessário
