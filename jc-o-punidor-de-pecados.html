@@ -8,6 +8,8 @@
     <script src="teclado.js"></script>
     <script src="aguabenta.js"></script>
     <script src="jc.js"></script>
+    <script src="inimigo.js"></script>
+    <script src="laser.js"></script>
     <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
@@ -61,9 +63,22 @@
                 }
             }
 
+        var jc = new JC(context, teclado, imgJC, animacao, canvas);
+        console.log("INSTÂNCIA DE JC CRIADA:", jc);
+        animacao.novoSprite(jc, true);
+        
+        // --- CRIAR E ADICIONAR UM INIMIGO ---
+        var inimigo1 = new Inimigo(context, 700, jc.posicaoChao, jc, animacao, canvas);
+        animacao.novoSprite(inimigo1); // Inimigo é adicionado UMA VEZ aqui
+
+        // Configurações de teclado (como antes)
+        teclado.disparou(SETA_CIMA, jc.pular.bind(jc));
+        teclado.disparou(TECLA_W, jc.pular.bind(jc));
+        teclado.disparou(ESPACO, jc.atirar.bind(jc));
+
         var TECLA_P = 80;
             teclado.disparou(TECLA_P, function() {
-                // --- NOVO LOG AQUI ---
+                
                 if (jc) { // Verifica se jc existe primeiro
                     console.log('[HTML - Tecla P] Verificando JC. Vidas:', jc.vidas, 'Esta Morto:', jc.estaMorto, 'Resultado de estaVivo():', jc.estaVivo());
                 } else {
@@ -96,14 +111,6 @@
         imgJC.src = 'img/JC_alpha.png';
         console.log('Definindo src para imgCoracao:', 'img/vida-coracao.png'); // CONFIRME ESTE CAMINHO
         imgCoracao.src = 'img/vida-coracao.png'; // CONFIRME ESTE CAMINHO
-
-        var jc = new JC(context, teclado, imgJC, animacao, canvas);
-        animacao.novoSprite(jc, true);
-
-        // Configurações de teclado (como antes)
-        teclado.disparou(SETA_CIMA, jc.pular.bind(jc));
-        teclado.disparou(TECLA_W, jc.pular.bind(jc));
-        teclado.disparou(ESPACO, jc.atirar.bind(jc));
 
     </script>
 </body>
