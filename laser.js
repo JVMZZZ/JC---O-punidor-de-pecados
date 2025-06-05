@@ -13,7 +13,7 @@ function Laser(context, x, y, dirX, dirY, velocidade, canvas, animacao) { // <<-
     
     this.largura = 15;
     this.altura = 3;
-    this.cor = 'orange';
+    this.cor = 'purple';
 
     this.removivel = false;
     this.tipo = 'laserInimigo';

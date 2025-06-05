@@ -8,7 +8,7 @@ function JC(context, teclado, imagem, animacao, canvas) {
     this.imagem = imagem;
     this.animacao = animacao;
     this.canvas = canvas;
-    this.tipo = 'jogador'; // <<--- MUDANÇA/CORREÇÃO: Tipo para colisões
+    this.tipo = 'jogador';
 
     this.x = 50;
     this.posicaoChao = 300;
@@ -19,7 +19,7 @@ function JC(context, teclado, imagem, animacao, canvas) {
     this.velocidade = 2;
 
     this.invencivel = false;
-    this.duracaoInvencibilidade = 1000;
+    this.duracaoInvencibilidade = 1000; // 1 segundo de invencibilidade
     this.tempoInvencivelRestante = 0;
 
     this.maxVidas = 5;
@@ -52,8 +52,9 @@ JC.prototype = {
     atualizar: function(deltaTime) {
         if (this.estaMorto) return;
 
+        // Lógica de invencibilidade
         if (this.invencivel) {
-            this.tempoInvencivelRestante -= deltaTime * 1000;
+            this.tempoInvencivelRestante -= deltaTime * 1000; // deltaTime geralmente é em segundos
             if (this.tempoInvencivelRestante <= 0) {
                 this.invencivel = false;
                 this.tempoInvencivelRestante = 0;
@@ -61,9 +62,10 @@ JC.prototype = {
             }
         }
 
+        // Lógica de movimento (como antes)
         if (this.teclado.pressionada(SETA_DIREITA) || this.teclado.pressionada(TECLA_D)) {
             if (!this.andando || this.direcao != JC_DIREITA) {
-                this.sheet.linha = 1; // Andando para direita
+                this.sheet.linha = 1;
                 this.sheet.coluna = 0;
             }
             this.andando = true; this.direcao = JC_DIREITA;
@@ -71,29 +73,25 @@ JC.prototype = {
             this.x += this.velocidade;
         } else if (this.teclado.pressionada(SETA_ESQUERDA) || this.teclado.pressionada(TECLA_A)) {
             if (!this.andando || this.direcao != JC_ESQUERDA) {
-                this.sheet.linha = 2; // Andando para esquerda
-                this.sheet.coluna = 0; // <<--- MUDANÇA/CORREÇÃO: Animações geralmente começam na coluna 0
-                                      // Se sua animação de andar para esquerda na linha 2 realmente começa no quadro 1, mantenha 1.
-                                      // Mas o padrão é começar em 0.
+                this.sheet.linha = 2;
+                this.sheet.coluna = 0;
             }
             this.andando = true; this.direcao = JC_ESQUERDA;
             this.sheet.proximoQuadro();
             this.x -= this.velocidade;
-        } else { // Parado
+        } else {
             if (this.andando) {
-                // console.log("[JC Parado] Direção anterior:", (this.direcao === JC_DIREITA ? "DIREITA" : "ESQUERDA"));
-                this.sheet.linha = 0; // Linha para JC parado
+                this.sheet.linha = 0;
                 if (this.direcao == JC_DIREITA) {
                     this.sheet.coluna = 0;
-                    // console.log("[JC Parado] Sprite: Parado Direita (L0, C0)");
                 } else if (this.direcao == JC_ESQUERDA) {
-                    this.sheet.coluna = 1; // Assumindo que sua linha 0, coluna 1 é "parado esquerda"
-                    // console.log("[JC Parado] Sprite: Parado Esquerda (L0, C1)");
+                    this.sheet.coluna = 1;
                 }
             }
             this.andando = false;
         }
         
+        // Limites do mundo
         if (this.animacao && typeof this.animacao.mundoLargura !== 'undefined') {
             if (this.x < 0) this.x = 0;
             if (this.x + this.largura > this.animacao.mundoLargura) {
@@ -102,82 +100,139 @@ JC.prototype = {
         }
     },
 
-    getHitboxMundo: function() { /* ... como antes ... */ 
+    getHitboxMundo: function() {
         return {
             x: this.x + this.hitboxOffsetX, y: this.y + this.hitboxOffsetY,
             largura: this.hitboxLargura, altura: this.hitboxAltura
         };
     },
-    desenharHitbox: function() { /* ... como antes ... */ 
+
+    desenharHitbox: function() {
         var hitbox = this.getHitboxMundo(); var ctx = this.context;
         ctx.save(); ctx.strokeStyle = 'lime'; ctx.lineWidth = 1;
         ctx.strokeRect(hitbox.x, hitbox.y, hitbox.largura, hitbox.altura);
         ctx.restore();
     },
-    desenhar: function() { /* ... como antes, com a lógica de piscar ... */
-        if (this.estaMorto) return;
+
+    desenhar: function() {
+        if (this.estaMorto && this.sheet.linha !== 2 && this.sheet.coluna !==7) { // Adicionar condição para animação de morte se tiver uma específica.
+             // Exemplo: this.sheet.linha = X; this.sheet.coluna = Y; // Sprite de morte
+             // Por enquanto, se estiver morto, não desenha nada após a lógica de invencibilidade.
+             // Se você quiser uma animação de morte, ela seria tratada aqui ou no atualizar.
+             // Se a morte for instantânea e sem sprite específico, pode apenas retornar:
+             // return; // Ou desenhar um sprite de "game over" ou túmulo.
+        }
+
         let deveDesenharSprite = true;
         if (this.invencivel) {
+            // Lógica de piscar quando invencível
             deveDesenharSprite = Math.floor(Date.now() / 100) % 2 === 0;
         }
+
         if (deveDesenharSprite) {
             this.sheet.desenhar(this.x, this.y);
         }
-        // this.desenharHitbox(); 
+        
+        // this.desenharHitbox(); // Descomente para ver a hitbox
     },
-    pular: function() { /* ... como antes, com a verificação if (this.estaMorto || this.estaPulando) return; ... */
+
+    pular: function() {
         if (this.estaMorto || this.estaPulando) return;
-        console.log("JC pulou!"); this.estaPulando = true; this.y -= this.alturaPulo;
+        // console.log("JC pulou!");
+        this.estaPulando = true;
+        this.y -= this.alturaPulo; // Pulo simples, pode ser melhorado com gravidade
         setTimeout(() => {
-            this.y = this.posicaoChao; this.estaPulando = false; console.log("JC aterrissou!");
+            this.y = this.posicaoChao; this.estaPulando = false; // console.log("JC aterrissou!");
         }, this.duracaoPuloMs);
     },
-    atirar: function() { /* ... como antes, com if (this.estaMorto) return; ... */
-        console.log("[JC.JS atirar] >>> Método atirar INICIADO. estaMorto:", this.estaMorto, "Vidas:", this.vidas); // Log 4
-    if (this.estaMorto) {
-        console.log("[JC.JS atirar] JC está morto, não pode atirar."); // Log 5
-        return;
-    }
 
-    var xBola, yBola;
-    var direcaoTiro;
-
-    // Logs para verificar as variáveis usadas no cálculo da posição do tiro
-    console.log("[JC.JS atirar] this.y:", this.y, "this.altura:", this.altura, "this.x:", this.x, "this.largura:", this.largura, "this.direcao:", this.direcao); // Log 6
-
-    yBola = this.y + (this.altura / 3) - (6/2); // Raio da AguaBenta é 6
-
-    if (this.direcao == JC_DIREITA) {
-        xBola = this.x + this.largura;
-        direcaoTiro = 1;
-    } else { 
-        xBola = this.x;
-        direcaoTiro = -1;
-    }
-    console.log("[JC.JS atirar] Posição calculada do tiro: xBola=", xBola, "yBola=", yBola, "direcaoTiro=", direcaoTiro); // Log 7
-
-    try {
-        // Certifique-se que a classe AguaBenta está definida e o arquivo aguabenta.js carregado
-        var agua = new AguaBenta(this.context, xBola, yBola, direcaoTiro, this.canvas);
-        console.log("[JC.JS atirar] Instância de AguaBenta criada:", agua); // Log 8
-
-        if (this.animacao && typeof this.animacao.novoSprite === 'function') {
-            this.animacao.novoSprite(agua);
-            console.log("[JC.JS atirar] AguaBenta adicionada à animação com sucesso."); // Log 9
-        } else {
-            console.error("[JC.JS atirar] ERRO: this.animacao ou this.animacao.novoSprite não está definido!", this.animacao); // Log 10
+    atirar: function() {
+        if (this.estaMorto) {
+            // console.log("[JC.JS atirar] JC está morto, não pode atirar.");
+            return;
         }
-    } catch (e) {
-        console.error("[JC.JS atirar] ERRO CRÍTICO ao criar ou adicionar AguaBenta:", e); // Log 11
-    }
-    console.log("[JC.JS atirar] <<< Método atirar FINALIZADO."); // Log 12
-},
-    morrer: function() { /* ... como antes ... */
-        this.estaMorto = true;
-        console.log("[JC.JS - morrer] JC Morreu! Vidas:", this.vidas);
+        // console.log("[JC.JS atirar] >>> Método atirar INICIADO. estaMorto:", this.estaMorto, "Vidas:", this.vidas);
+
+        var xBola, yBola;
+        var direcaoTiro;
+
+        yBola = this.y + (this.altura / 3) - (6/2); // Raio da AguaBenta é 6 (assumindo)
+
+        if (this.direcao == JC_DIREITA) {
+            xBola = this.x + this.largura;
+            direcaoTiro = 1;
+        } else { 
+            xBola = this.x;
+            direcaoTiro = -1;
+        }
+
+        try {
+            if (typeof AguaBenta !== 'undefined' && this.animacao && typeof this.animacao.novoSprite === 'function') {
+                var agua = new AguaBenta(this.context, xBola, yBola, direcaoTiro, this.canvas);
+                this.animacao.novoSprite(agua);
+                // console.log("[JC.JS atirar] AguaBenta adicionada à animação com sucesso.");
+            } else {
+                console.error("[JC.JS atirar] ERRO: Classe AguaBenta não definida ou this.animacao.novoSprite não é uma função.");
+            }
+        } catch (e) {
+            console.error("[JC.JS atirar] ERRO CRÍTICO ao criar ou adicionar AguaBenta:", e);
+        }
+        // console.log("[JC.JS atirar] <<< Método atirar FINALIZADO.");
     },
-    restaurarVidas: function() { /* ... como antes ... */
-        this.vidas = this.maxVidas; this.estaMorto = false;
-        console.log("JC vidas restauradas! Vidas:", this.vidas);
+
+    // NOVA FUNÇÃO ADICIONADA:
+    receberDano: function(danoInfo) { // danoInfo pode ser um objeto com {dano: 1, tipo: 'laser'} ou apenas a quantidade de dano. Por ora, vamos assumir dano de 1.
+        // 1. Se já estiver invencível ou morto, não faz nada.
+        if (this.invencivel || this.estaMorto) {
+            return;
+        }
+
+        console.log("[JC.JS - receberDano] Jogador recebeu dano!");
+
+        // 2. Diminui uma vida
+        this.vidas--;
+        console.log("[JC.JS - receberDano] Vidas restantes:", this.vidas);
+
+        // 3. Ativa a invencibilidade
+        this.invencivel = true;
+        this.tempoInvencivelRestante = this.duracaoInvencibilidade;
+        // console.log("[JC.JS - receberDano] Jogador ficou invencível por", this.duracaoInvencibilidade, "ms");
+
+        // Efeito sonoro de dano (opcional)
+        // var somDano = new Audio('snd/dano_jogador.mp3'); // Exemplo
+        // somDano.play();
+
+        // 4. Verifica se o jogador morreu
+        if (this.vidas <= 0) {
+            this.vidas = 0; // Garante que não fique negativo
+            this.morrer(); // Chama a função que define estaMorto = true
+        }
+    },
+
+    morrer: function() {
+        if (this.estaMorto) return; // Evita chamar múltiplas vezes
+
+        this.estaMorto = true;
+        this.andando = false; // Para qualquer animação de movimento
+        console.log("[JC.JS - morrer] JC Morreu! Vidas:", this.vidas);
+        // Aqui você pode adicionar lógica para uma animação de morte, som, etc.
+        // Ex: this.sheet.linha = 2; this.sheet.coluna = 7; // Supondo que este é o sprite de morte
+        // this.sheet.intervalo = 0; // Para parar a animação no sprite de morte, se for um único quadro
+
+        // Poderia também notificar o sistema de animação ou o jogo principal que o jogador morreu
+        // if (this.animacao && typeof this.animacao.jogadorMorreu === 'function') {
+        // this.animacao.jogadorMorreu();
+        // }
+    },
+
+    restaurarVidas: function() {
+        this.vidas = this.maxVidas;
+        this.estaMorto = false;
+        this.invencivel = false;
+        this.tempoInvencivelRestante = 0;
+        // Resetar sprite para o inicial parado
+        this.sheet.linha = 0;
+        this.sheet.coluna = 0;
+        console.log("[JC.JS - restaurarVidas] JC vidas restauradas! Vidas:", this.vidas);
     }
 };

@@ -12,7 +12,7 @@ function AguaBenta(context, x, y, direcaoTiro, canvas) { // Removido mundoLargur
     this.tipo = 'aguaBenta'; // <<--- MUDANÇA/CORREÇÃO: Tipo para colisões
 
     this.xInicial = x;
-    this.distanciaMaxima = 800;
+    this.distanciaMaxima = 400;
     this.distanciaPercorrida = 0; // <<--- ADICIONADO: Inicializar distanciaPercorrida
 }
 
