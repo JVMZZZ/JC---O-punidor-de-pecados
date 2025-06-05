@@ -164,7 +164,7 @@ JC.prototype = {
             this.context.fillStyle = "blue";
             this.context.fillRect(this.x, this.y, this.largura, this.altura);
         }
-        // this.desenharHitbox();
+        
     },
     getHitboxMundo: function() {
         return {
