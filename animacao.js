@@ -8,7 +8,7 @@ function Animacao(context, canvas) { // Precisa do canvas para obter a largura d
     // --- Propriedades da Câmera e do Mundo ---
     this.cameraX = 0;
     this.cameraY = 0;     // Para rolagem vertical futura, por enquanto mantemos em 0
-    this.mundoLargura = 5000; // Largura total do seu mundo/nível (EXEMPLO: ajuste conforme necessário)
+    this.mundoLargura = 5000; // Largura total do seu mundo/nível
     
     this.jogadorPrincipal = null; // O sprite que a câmera deve seguir (o JC)
 
@@ -97,14 +97,12 @@ Animacao.prototype = {
     ctx.save();
 
     console.log('[HUD] Desenhando HUD. Vidas JC:', this.jogadorPrincipal.vidas); 
-    // LOG
 
     // Desenhar IMAGENS de Coração
-    // console.log('[HUD] Verificando this.imgCoracaoHUD:', this.imgCoracaoHUD); // LOG
     if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalHeight !== 0) {
-        // console.log('[HUD] Imagem do coração está pronta para desenhar.'); // LOG
+        
         var xInicialCoracao = 10;
-        var yCoracao = 10; // Ajuste se também tiver o texto de vidas
+        var yCoracao = 10;
         var larguraCoracao = this.imgCoracaoHUD.width;
         var alturaCoracao = this.imgCoracaoHUD.height;
         var espacamentoCoracao = 5;
@@ -112,24 +110,22 @@ Animacao.prototype = {
         if (larguraCoracao === 0 || alturaCoracao === 0) {
             console.error("[HUD] Largura ou altura da imagem do coração é 0. A imagem pode não ter carregado corretamente.");
         } else {
-            // console.log('[HUD] Vidas para desenhar:', this.jogadorPrincipal.vidas); // LOG
             for (var i = 0; i < this.jogadorPrincipal.vidas; i++) {
                 var xPos = xInicialCoracao + (i * (larguraCoracao + espacamentoCoracao));
-                // console.log('[HUD] Desenhando coração', i + 1, 'em x:', xPos, 'y:', yCoracao, 'largura:', larguraCoracao, 'altura:', alturaCoracao); // LOG
-                try {
-                    ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
-                } catch (e) {
-                    console.error("[HUD] Erro ao tentar desenhar a imagem do coração:", e);
+                    try {
+                        ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
+                    } catch (e) {
+                        console.error("[HUD] Erro ao tentar desenhar a imagem do coração:", e);
+                    }
                 }
-            }
         }
     } else {
-        // console.log('[HUD] Imagem do coração NÃO está pronta ou não foi definida. Desenhando fallback de texto.'); // LOG
+        // Imagem do coração NÃO está pronta ou não foi definida. Desenhando fallback de texto.
         ctx.fillStyle = 'red';
         ctx.font = '20px Arial';
         var coracoesTexto = "";
         for (var c = 0; c < this.jogadorPrincipal.vidas; c++) { coracoesTexto += "❤ "; }
-        ctx.fillText(coracoesTexto, 10, 10); // Ajuste Y se necessário
+        ctx.fillText(coracoesTexto, 10, 10);
     }
 
     if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete && this.imgCoracaoHUD.naturalHeight !== 0) {
@@ -139,7 +135,7 @@ Animacao.prototype = {
         var alturaCoracao = this.imgCoracaoHUD.height;
         var espacamentoCoracao = 5;
 
-        // ESTE LOOP É A CHAVE:
+        // LOOP DA IMPLEMENTAÇÃO DOS CORAÇÕES
         for (var i = 0; i < this.jogadorPrincipal.vidas; i++) {
             var xPos = xInicialCoracao + (i * (larguraCoracao + espacamentoCoracao));
             ctx.drawImage(this.imgCoracaoHUD, xPos, yCoracao, larguraCoracao, alturaCoracao);
