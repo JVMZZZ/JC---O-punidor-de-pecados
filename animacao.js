@@ -13,39 +13,41 @@ function Animacao(context, canvas) {
 
     this.jogadorPrincipal = null;
     this.cameraSuavizacao = 0.08;
-    this.imgCoracaoHUD = null; // Usado para HUD e para dropar corações
+    this.imgCoracaoHUD = null;
 
     this.maxInimigos = 5; 
     this.frequenciaSpawnInimigo = 5000;
     this.tempoUltimoSpawnInimigo = 0;
 
     this.imgInimigo = null;
-    this.imgInimigoLinhas = 1; // Ajuste conforme sua spritesheet
-    this.imgInimigoColunas = 4; // Ajuste
+    this.imgInimigoLinhas = 1;
+    this.imgInimigoColunas = 4;
 
     this.distanciaMinimaEntreInimigos = 40; 
 
-    // Propriedades para o Portão/Barreira e sua Condição
     this.condicaoPortao4000Liberado = false;
     this.jogadorPassouPortao4000 = false;
     this.inimigosDerrotadosContador = 0;
-    this.totalInimigosParaLiberarPortao = 5; // Abates para liberar o portão
+    this.totalInimigosParaLiberarPortao = 5;
 
-    // Propriedades para o Drop de Corações
     this.abatesDesdeUltimoCoracao = 0;
     this.abatesNecessariosPorCoracao = 3; 
 
-    // Propriedades para o Boss
     this.imgBoss = null;
     this.bossInstancia = null; 
     this.bossJaFoiSpawnado = false;
+
+    this.abatesParaVidaExtra = 0; // Contador de abates para esta recompensa específica
+    this.abatesNecessariosParaVidaExtra = 30; // A meta de 30 abates
+
+    this.pausado = false;
 }
 
 Animacao.prototype = {
     novoSprite: function(sprite, ehJogadorPrincipal = false) {
         this.sprites.push(sprite);
         if (ehJogadorPrincipal) {
-            this.jogadorPrincipal = sprite;
+            this.jogadorPrincipal = sprite; // Define/atualiza o jogador principal
         }
         if (sprite && typeof sprite.animacao === 'undefined') {
             sprite.animacao = this;
@@ -56,6 +58,7 @@ Animacao.prototype = {
         this.ultimoTempo = Date.now();
         this.tempoUltimoSpawnInimigo = Date.now();
         this.ligado = true;
+        this.pausado = false; 
         this.proximoFrame();
     },
 
@@ -65,54 +68,33 @@ Animacao.prototype = {
 
     atualizarCamera: function() {
         if (!this.jogadorPrincipal) return;
-
         const BARRIER_X_COORD = 4000;
-
         if (this.jogadorPassouPortao4000) {
-            // Câmera fica fixa após passar o portão, mostrando a arena do Boss
             this.cameraX = BARRIER_X_COORD;
-
-            // Garante que a câmera não mostre além dos limites do mundo
             this.cameraX = Math.min(this.cameraX, this.mundoLargura - this.canvas.width);
             this.cameraX = Math.max(0, this.cameraX);
         } else {
-            // Câmera com side-scrolling normal, seguindo o jogador
             let alvoCameraX = this.jogadorPrincipal.x - (this.canvas.width / 2) + (this.jogadorPrincipal.largura / 2);
             let novaCameraX = this.cameraX + (alvoCameraX - this.cameraX) * this.cameraSuavizacao;
             if (Math.abs(alvoCameraX - novaCameraX) < 0.5) novaCameraX = alvoCameraX;
             this.cameraX = novaCameraX;
-
             this.cameraX = Math.max(0, Math.min(this.cameraX, this.mundoLargura - this.canvas.width));
         }
     },
 
     tentarSpawnInimigo: function(tempoAtual) {
-        // Não spawna inimigos normais se o jogador já passou para a área do Boss
-        if (this.jogadorPassouPortao4000 || (this.bossInstancia && !this.bossInstancia.removivel)) {
-            return; 
-        }
-
-        if ((tempoAtual - this.tempoUltimoSpawnInimigo) < this.frequenciaSpawnInimigo) {
-            return; 
-        }
+        if (this.jogadorPassouPortao4000 || (this.bossInstancia && !this.bossInstancia.removivel)) return; 
+        if ((tempoAtual - this.tempoUltimoSpawnInimigo) < this.frequenciaSpawnInimigo) return; 
         this.tempoUltimoSpawnInimigo = tempoAtual;
-
         let inimigosVivos = this.sprites.filter(s => s && s.tipo === 'inimigo' && !s.removivel).length;
-        if (inimigosVivos >= this.maxInimigos) {
-            return;
-        }
-
-        if (!this.imgInimigo || !this.jogadorPrincipal || !this.imgInimigo.complete || this.imgInimigo.naturalHeight === 0) {
-            return;
-        }
+        if (inimigosVivos >= this.maxInimigos) return;
+        if (!this.imgInimigo || !this.jogadorPrincipal || !this.imgInimigo.complete || this.imgInimigo.naturalHeight === 0) return;
 
         let spawnY = (this.jogadorPrincipal.posicaoChao !== undefined) ? this.jogadorPrincipal.posicaoChao : (this.canvas.height - 100);
         let playerX = this.jogadorPrincipal.x;
         let larguraEstimadaInimigo = (this.imgInimigoColunas > 0 && this.imgInimigo.naturalWidth > 0) ? this.imgInimigo.naturalWidth / this.imgInimigoColunas : 50;
-        
         const LIMITE_SPAWN_ANTES_PORTAO = 3950;
         let posicoesPossiveisX = [];
-        
         let spawnEsquerdaX = playerX - this.distanciaSpawnInimigo;
         if (spawnEsquerdaX >= 0 && (spawnEsquerdaX + larguraEstimadaInimigo) < LIMITE_SPAWN_ANTES_PORTAO) {
             posicoesPossiveisX.push(spawnEsquerdaX);
@@ -121,7 +103,6 @@ Animacao.prototype = {
         if (spawnDireitaX >= 0 && (spawnDireitaX + larguraEstimadaInimigo) < LIMITE_SPAWN_ANTES_PORTAO) {
              posicoesPossiveisX.push(spawnDireitaX);
         }
-
         if (posicoesPossiveisX.length > 0) {
             let spawnX = posicoesPossiveisX[Math.floor(Math.random() * posicoesPossiveisX.length)];
             var novoInimigo = new Inimigo(this.context, spawnX, spawnY, this.jogadorPrincipal, this, this.canvas, this.imgInimigo, this.imgInimigoLinhas, this.imgInimigoColunas);
@@ -131,7 +112,6 @@ Animacao.prototype = {
     
     aplicarSeparacaoInimigos: function() {
         if (this.jogadorPassouPortao4000 || (this.bossInstancia && !this.bossInstancia.removivel)) return;
-
         let inimigos = this.sprites.filter(s => s && s.tipo === 'inimigo' && !s.removivel);
         for (let i = 0; i < inimigos.length; i++) {
             for (let j = i + 1; j < inimigos.length; j++) {
@@ -141,7 +121,7 @@ Animacao.prototype = {
                 let caX = inimigoA.x + la/2, caY = inimigoA.y + ha/2;
                 let cbX = inimigoB.x + lb/2, cbY = inimigoB.y + hb/2;
                 let dx = cbX - caX, dy = cbY - caY;
-                let dist = Math.sqrt(dx*dx + dy*dy);
+                let dist = Math.hypot(dx, dy);
                 if (dist < this.distanciaMinimaEntreInimigos && dist > 0) {
                     let mover = (this.distanciaMinimaEntreInimigos - dist)/2;
                     let normDx = dx/dist, normDy = dy/dist;
@@ -164,18 +144,14 @@ Animacao.prototype = {
 
     desenharFeedbackPortao4000: function() {
         if (this.jogadorPassouPortao4000) return;
-
         const BARRIER_X_COORD = 4000;
         const LARGURA_PAREDE = 20;
-
         if (BARRIER_X_COORD + LARGURA_PAREDE / 2 < this.cameraX || 
             BARRIER_X_COORD - LARGURA_PAREDE / 2 > this.cameraX + this.canvas.width) {
             return; 
         }
-        
         let xDesenhoParede = BARRIER_X_COORD; 
         this.context.save();
-
         if (this.condicaoPortao4000Liberado) {
             if (this.jogadorPrincipal && Math.abs(this.jogadorPrincipal.x - BARRIER_X_COORD) < 400) {
                 this.context.fillStyle = 'lightgreen'; this.context.font = 'bold 20px Arial';
@@ -188,19 +164,16 @@ Animacao.prototype = {
             this.context.lineWidth = 3;
             this.context.fillRect(xDesenhoParede - LARGURA_PAREDE / 2, 0, LARGURA_PAREDE, this.canvas.height);
             this.context.strokeRect(xDesenhoParede - LARGURA_PAREDE / 2, 0, LARGURA_PAREDE, this.canvas.height);
-
             this.context.strokeStyle = 'rgba(0, 0, 0, 0.3)'; this.context.lineWidth = 1;
             const numLinhasV = 3; const espLinhas = LARGURA_PAREDE / (numLinhasV + 1);
             for (let i = 1; i <= numLinhasV; i++) {
                 let xLinha = xDesenhoParede - LARGURA_PAREDE / 2 + (i * espLinhas);
                 this.context.beginPath(); this.context.moveTo(xLinha, 0); this.context.lineTo(xLinha, this.canvas.height); this.context.stroke();
             }
-            
             if (this.jogadorPrincipal && Math.abs(this.jogadorPrincipal.x - BARRIER_X_COORD) < 400) {
                 let inimigosFaltantes = Math.max(0, this.totalInimigosParaLiberarPortao - this.inimigosDerrotadosContador);
                 let textoStatus = `BARREIRA ATIVA!\nDerrote ${inimigosFaltantes} inimigos.`;
                 if (inimigosFaltantes === 1) textoStatus = `BARREIRA ATIVA!\nDerrote mais 1 inimigo.`;
-                
                 this.context.fillStyle = 'white'; this.context.font = 'bold 16px Arial';
                 this.context.textAlign = 'center'; this.context.shadowColor = "black"; this.context.shadowBlur = 5;
                 const lineHeight = 20; const lines = textoStatus.split('\n');
@@ -213,18 +186,15 @@ Animacao.prototype = {
 
     spawnBoss: function() {
         if (!this.imgBoss || !this.imgBoss.complete || this.imgBoss.naturalHeight === 0) {
-            console.warn("Animacao: Imagem do Boss (this.imgBoss) não carregada ou inválida. Boss não pode ser spawnado.");
+            console.warn("Animacao: Imagem do Boss não carregada, não pode spawnar.");
             return;
         }
-        
         const spawnXBoss = 4400;
-        const alturaBoss = 120; // Ajuste com a altura real do seu boss
+        const alturaBoss = 120;
         const spawnYBoss = (this.jogadorPrincipal && this.jogadorPrincipal.posicaoChao !== undefined) 
                            ? (this.jogadorPrincipal.posicaoChao - alturaBoss + (this.jogadorPrincipal.altura || 0)) 
                            : (this.canvas.height - alturaBoss - 20);
-
         this.bossInstancia = new Boss(this.context, spawnXBoss, spawnYBoss, this.imgBoss, this, this.jogadorPrincipal, this.canvas);
-        
         this.novoSprite(this.bossInstancia);
         this.bossJaFoiSpawnado = true;
         console.log("EVENTO: BOSS SPAWNADO!");
@@ -242,13 +212,67 @@ Animacao.prototype = {
 
     eventoBossDerrotado: function() {
         console.log("Animacao: Evento de Boss Derrotado Recebido!");
-        this.bossInstancia = null;
+        this.bossInstancia = null; // Limpa a referência ao boss
         alert("VOCÊ VENCEU O BOSS! PARABÉNS!");
-        // this.desligar(); 
+        // Poderia chamar this.gameOver() aqui se quisesse voltar ao menu principal após vencer o boss
+        // this.gameOver();
     },
 
+    togglePausa: function() {
+        this.pausado = !this.pausado;
+        const menuPausaElement = document.getElementById('menu-pausa');
+        if (menuPausaElement) {
+            if (this.pausado) {
+                menuPausaElement.classList.remove('escondido');
+                console.log("Jogo Pausado.");
+            } else {
+                menuPausaElement.classList.add('escondido');
+                console.log("Jogo Retomado.");
+            }
+        }
+    },
+
+    // << MÉTODO RESETARJOGO ATUALIZADO >>
+    resetarJogo: function() {
+        console.log("Resetando estado da animação (sem recriar jogador aqui)...");
+        this.sprites = []; // Limpa todos os sprites (incluindo o jogador antigo)
+        this.jogadorPrincipal = null; // Importante: remove a referência ao jogador antigo
+        
+        this.cameraX = 0;
+        this.cameraY = 0;
+        this.condicaoPortao4000Liberado = false;
+        this.jogadorPassouPortao4000 = false;
+        this.inimigosDerrotadosContador = 0;
+        this.abatesDesdeUltimoCoracao = 0;
+        
+        this.bossInstancia = null; 
+        this.bossJaFoiSpawnado = false;
+        
+        this.tempoUltimoSpawnInimigo = Date.now();
+        this.pausado = false;
+        // Não mexer em 'this.ligado' aqui. O controle de ligar/desligar
+        // o loop principal é feito por 'ligar()', 'desligar()' e 'gameOver()'.
+    },
+    
+    // << MÉTODO GAME OVER >>
+    gameOver: function() {
+    console.log("GAME OVER!");
+    this.desligar(); // Para o loop do jogo completamente
+
+    // mostra a tela de Game Over.
+    const telaGameOverElement = document.getElementById('tela-game-over');
+    if (telaGameOverElement) {
+        telaGameOverElement.classList.remove('escondido'); // Mostra a tela de Game Over
+    }
+},
+
     proximoFrame: function() {
-        if (!this.ligado) return;
+        if (!this.ligado || this.pausado) {
+            if (this.ligado) { 
+                requestAnimationFrame(() => this.proximoFrame());
+            }
+            return;
+        }
 
         var agora = Date.now();
         var deltaTime = (agora - this.ultimoTempo) / 1000.0;
@@ -280,9 +304,14 @@ Animacao.prototype = {
         this.context.save();
         this.context.translate(-this.cameraX, -this.cameraY);
         
+        const alturaChao = 200;
+        this.context.fillStyle = '#87CEEB';
+        this.context.fillRect(0, 0, this.mundoLargura, this.canvas.height - alturaChao);
+        this.context.fillStyle = '#D2B48C';
+        this.context.fillRect(0, this.canvas.height - alturaChao, this.mundoLargura, alturaChao);
+        
         this.aplicarSeparacaoInimigos();
 
-        // Lógica de Colisão
         var jogador = this.jogadorPrincipal;
         if (jogador && !jogador.estaMorto && typeof jogador.getHitboxMundo === 'function') {
             var hitboxJogador = jogador.getHitboxMundo();
@@ -303,7 +332,6 @@ Animacao.prototype = {
                     for (var j = this.sprites.length - 1; j >= 0; j--) {
                         if (i === j) continue;
                         var alvoDoProjetil = this.sprites[j];
-
                         if (alvoDoProjetil && !alvoDoProjetil.removivel && typeof alvoDoProjetil.getHitboxMundo === 'function') {
                             if (alvoDoProjetil.tipo === 'inimigo') {
                                 var hitboxInimigo = alvoDoProjetil.getHitboxMundo();
@@ -311,21 +339,35 @@ Animacao.prototype = {
                                     alvoDoProjetil.removivel = true; 
                                     outroSprite.removivel = true; 
 
+                                    // ================================================================
+                                    // =========== LÓGICA DE RECOMPENSA POR ABATES ADICIONADA AQUI ↓ ====
+                                    // ================================================================
+                                    this.abatesParaVidaExtra++;
+                                    console.log(`Abates para recompensa: ${this.abatesParaVidaExtra} / ${this.abatesNecessariosParaVidaExtra}`);
+                                    
+                                    if (this.abatesParaVidaExtra >= this.abatesNecessariosParaVidaExtra) {
+                                        console.log("META DE 30 ABATES ATINGIDA! Dando recompensa!");
+                                        if (this.jogadorPrincipal && typeof this.jogadorPrincipal.aumentarVidaMaxima === 'function') {
+                                            this.jogadorPrincipal.aumentarVidaMaxima(5);
+                                        }
+                                        this.abatesParaVidaExtra = 0; // Reseta o contador
+                                    }
+                                    // ================================================================
+                                    
                                     if (!this.condicaoPortao4000Liberado) this.inimigosDerrotadosContador++;
-                                    if (this.jogadorPrincipal.vidas < this.jogadorPrincipal.maxVidas && !this.jogadorPassouPortao4000) {
+                                    if (jogador.vidas < jogador.maxVidas && !this.jogadorPassouPortao4000) {
                                         this.abatesDesdeUltimoCoracao++;
                                         if (this.abatesDesdeUltimoCoracao >= this.abatesNecessariosPorCoracao) {
-                                            if (this.imgCoracaoHUD && this.imgCoracaoHUD.complete) {
-                                                let imgH = this.imgCoracaoHUD.naturalHeight||20, imgW = this.imgCoracaoHUD.naturalWidth||20;
-                                                let pL = alvoDoProjetil.largura||50, pA = alvoDoProjetil.altura||50;
-                                                let dropX = alvoDoProjetil.x + (pL/2) - (imgW/2);
-                                                let dropY = alvoDoProjetil.y + (pA/2) - (imgH/2);
-                                                dropX = Math.max(10, Math.min(dropX, this.mundoLargura - imgW - 10));
-                                                dropY = Math.max(10, Math.min(dropY, this.canvas.height - imgH - 10));
-                                                var coracaoDrop = new CoracaoDropado(this.context, dropX, dropY, this.imgCoracaoHUD, this);
-                                                this.novoSprite(coracaoDrop);
-                                                this.abatesDesdeUltimoCoracao = 0; 
-                                            }
+                                            // sua lógica de drop de coração
+                                            let imgH = this.imgCoracaoHUD.naturalHeight||20, imgW = this.imgCoracaoHUD.naturalWidth||20;
+                                            let pL = alvoDoProjetil.largura||50, pA = alvoDoProjetil.altura||50;
+                                            let dropX = alvoDoProjetil.x + (pL/2) - (imgW/2);
+                                            let dropY = alvoDoProjetil.y + (pA/2) - (imgH/2);
+                                            dropX = Math.max(10, Math.min(dropX, this.mundoLargura - imgW - 10));
+                                            dropY = Math.max(10, Math.min(dropY, this.canvas.height - imgH - 10));
+                                            var coracaoDrop = new CoracaoDropado(this.context, dropX, dropY, this.imgCoracaoHUD, this);
+                                            this.novoSprite(coracaoDrop);
+                                            this.abatesDesdeUltimoCoracao = 0; 
                                         }
                                     }
                                     break; 
@@ -398,6 +440,18 @@ Animacao.prototype = {
         }
 
         requestAnimationFrame(() => this.proximoFrame());
+    },
+
+    eventoBossDerrotado: function() {
+        console.log("Animacao: Evento de Boss Derrotado Recebido!");
+        this.desligar(); // Para o loop do jogo
+        this.bossInstancia = null; // Limpa a referência ao boss
+
+        // Em vez de um alert, agora mostra a tela de vitória
+        const telaVitoriaElement = document.getElementById('tela-vitoria');
+        if (telaVitoriaElement) {
+            telaVitoriaElement.classList.remove('escondido');
+        }
     },
 
     limparTela: function() {

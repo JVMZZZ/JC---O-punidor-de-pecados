@@ -3,144 +3,64 @@
 <head>
     <title>JC o punidor de pecados</title>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="src/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Spectral:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/style.css">
 
-    <script src="teclado.js"></script>
-    <script src="spritesheet_jc.js"></script> 
-
-    <script src="laser.js"></script>
-    <script src="aguabenta.js"></script>
-    <script src="coracaodropado.js"></script>
-    <script src="inimigo.js"></script>
-    <script src="boss.js"></script>      <script src="jc.js"></script>
-
-    <script src="animacao.js"></script>  <link rel="stylesheet" href="src/style.css">
+    <script src="teclado.js" defer></script>
+    <script src="spritesheet_jc.js" defer></script> 
+    <script src="animacao.js" defer></script> 
+    <script src="laser.js" defer></script>
+    <script src="aguabenta.js" defer></script>
+    <script src="coracaodropado.js" defer></script>
+    <script src="jc.js" defer></script>
+    <script src="inimigo.js" defer></script>
+    <script src="boss.js" defer></script> 
+    
+    <script src="main.js" defer></script>
 </head>
 <body>
-    <canvas id="canvas_jc" width="1000" height="500"></canvas>
-    <script>
-        var canvas = document.getElementById('canvas_jc');
-        var context = canvas.getContext('2d');
-        var teclado = new Teclado(document); // 'document' é o elemento correto para eventos de teclado globais
-        var animacao = new Animacao(context, canvas);
+    <div id="game-wrapper">
+        <div id="game-background"></div>
 
-        var imgJC = new Image();
-        var imgCoracao = new Image();
-        var imgInimigoPolvo = new Image();
-        var imgBossAsset = new Image(); // Imagem para o Boss
-
-        var imagensParaCarregar = 4; // JC, Coracao, InimigoPolvo, BossAsset
-        var imagensCarregadas = 0;
-        var jc; // Instância do jogador será criada após o carregamento das imagens
-
-        function imagemCarregada() {
-            imagensCarregadas++;
-            // console.log(`Imagem ${this.src} processada (onload/onerror). Total: ${imagensCarregadas}/${imagensParaCarregar}`);
+        <div id="menu-principal">
+            <h1>JC: O Punidor de Pecados</h1>
             
-            // Verifica se a imagem carregou com erro (ex: altura 0 mas 'complete' é true)
-            if (this.complete && this.naturalHeight === 0 && this.src) {
-                console.error('IMAGEM PARECE NÃO TER CARREGADO CORRETAMENTE (altura 0):', this.src);
-            }
+            <button id="botao-iniciar">Iniciar Jogo</button>
+            <button id="botao-controles">Controles</button> 
+        </div>
 
-            if (imagensCarregadas === imagensParaCarregar) {
-                console.log("Todas as imagens foram processadas (onload/onerror). Verificando integridade final...");
+        <div id="menu-pausa" class="escondido"> 
+            <h2>Pause</h2>
+            <button id="botao-continuar-jogo">Continuar</button>
+            <button id="botao-reiniciar-jogo">Reiniciar Jogo</button>
+            <button id="botao-voltar-menu">Voltar ao Menu</button> 
+        </div>
 
-                // Declara e inicializa as variáveis de verificação AQUI, ANTES de usá-las.
-                let jcRealmenteCarregada = imgJC.complete && imgJC.naturalHeight !== 0;
-                let coracaoRealmenteCarregado = imgCoracao.complete && imgCoracao.naturalHeight !== 0;
-                let inimigoRealmenteCarregado = imgInimigoPolvo.complete && imgInimigoPolvo.naturalHeight !== 0;
-                let bossRealmenteCarregado = imgBossAsset.complete && imgBossAsset.naturalHeight !== 0;
+        <div id="tela-controles" class="escondido">
+            <button id="botao-voltar-controles">Voltar</button>
+            <h2>Controles do Jogo</h2>
+            <ul>
+                <li><strong>Setas Esquerda/Direita ou Teclas A/D:</strong> Mover o personagem</li>
+                <li><strong>Seta Cima ou Tecla W:</strong> Pular</li>
+                <li><strong>Espaço:</strong> Atirar Água Benta</li>
+                <li><strong>Tecla M:</strong> Abrir/Fechar Menu de Pausa</li>
+            </ul>
+        </div>
+        <div id="tela-game-over" class="escondido">
+            <h1>FIM DE JOGO</h1>
+            <p>Os pecadores prevaleceram desta vez...</p>
+            <button id="botao-voltar-menu-gameover">Voltar ao Menu Principal</button>
+        </div>
+        <div id="tela-vitoria" class="escondido">
+        <h1>VITÓRIA!</h1>
+            <p>Você purificou a terra da influência do Mestre do Caos!</p>
+            <button id="botao-voltar-menu-vitoria">Voltar ao Menu Principal</button>
+        </div>
 
-                if (jcRealmenteCarregada && coracaoRealmenteCarregado && inimigoRealmenteCarregado && bossRealmenteCarregado) {
-                    console.log("CONFIRMADO: Todas as imagens principais carregadas com sucesso. Iniciando componentes do jogo...");
-                    
-                    // Configura a instância de animação com as imagens carregadas
-                    animacao.imgCoracaoHUD = imgCoracao;
-                    animacao.imgInimigo = imgInimigoPolvo;
-                    animacao.imgInimigoLinhas = 2;  // Ajuste conforme sua spritesheet do inimigo polvo
-                    animacao.imgInimigoColunas = 4; // Ajuste
-                    animacao.imgBoss = imgBossAsset; 
-                    
-                    // Define a largura do mundo na animação (pode também estar no construtor de Animacao)
-                    animacao.mundoLargura = 5000; 
-
-                    // Cria a instância do jogador (JC)
-                    // Garanta que a classe Spritesheet esteja definida (geralmente em spritesheet_jc.js)
-                    if (typeof Spritesheet === 'undefined') {
-                        console.error("ERRO CRÍTICO: Classe Spritesheet não está definida. Verifique a inclusão do script spritesheet_jc.js ou onde ela é definida.");
-                        alert("Erro crítico: Classe Spritesheet não encontrada. O jogo não pode iniciar.");
-                        return; // Impede a continuação
-                    }
-                    jc = new JC(context, teclado, imgJC, animacao, canvas);
-                    animacao.novoSprite(jc, true); // jc é o jogador principal
-
-                    // Configura os listeners de teclado para as ações do JC
-                    teclado.disparou(SETA_CIMA, function() { if(jc) jc.pular(); }); // Adicionado if(jc) para segurança
-                    teclado.disparou(TECLA_W, function() { if(jc) jc.pular(); });
-                    teclado.disparou(ESPACO, function() { if(jc) jc.atirar(); });
-                    teclado.disparou(TECLA_P, function() {
-                        if (jc && !jc.estaMorto && typeof jc.receberDano === 'function') { 
-                            jc.receberDano(); 
-                        }
-                    });
-                    teclado.disparou(TECLA_R, function() {
-                        if (jc && typeof jc.restaurarVidas === 'function') { 
-                            jc.restaurarVidas(); 
-                        }
-                    });
-                    // Tecla U para testar a liberação do portão (OPCIONAL - remova se a condição de abates já estiver funcionando)
-                    // teclado.disparou(85 /* U */, function() { 
-                    //     if (animacao && !animacao.condicaoPortao4000Liberado) {
-                    //         animacao.condicaoPortao4000Liberado = true;
-                    //         console.log("CONDIÇÃO DO PORTÃO 4000 LIBERADA MANUALMENTE (via tecla U)!");
-                    //     }
-                    // });
-                    
-                    console.log("--- DIAGNÓSTICO ANTES DE ANIMACAO.LIGAR() ---");
-                    console.log("1. animacao.jogadorPrincipal:", animacao.jogadorPrincipal ? animacao.jogadorPrincipal.tipo : "NULO");
-                    console.log("2. animacao.imgInimigo:", animacao.imgInimigo ? animacao.imgInimigo.src : "NULO");
-                    console.log("   animacao.imgInimigo.complete:", animacao.imgInimigo ? animacao.imgInimigo.complete : "N/A");
-                    console.log("   animacao.imgInimigo.naturalHeight:", animacao.imgInimigo ? animacao.imgInimigo.naturalHeight : "N/A");
-                    console.log("3. animacao.imgInimigoLinhas:", animacao.imgInimigoLinhas);
-                    console.log("4. animacao.imgInimigoColunas:", animacao.imgInimigoColunas);
-                    console.log("5. animacao.imgBoss:", animacao.imgBoss ? animacao.imgBoss.src : "NULO");
-                    console.log("   animacao.imgBoss.complete:", animacao.imgBoss ? animacao.imgBoss.complete : "N/A");
-                    console.log("   animacao.imgBoss.naturalHeight:", animacao.imgBoss ? animacao.imgBoss.naturalHeight : "N/A");
-                    console.log("--- FIM DO DIAGNÓSTICO ---");
-
-                    animacao.ligar(); // Inicia o loop do jogo
-
-                } else {
-                    // Monta a mensagem de erro se alguma imagem falhou em carregar corretamente
-                    let erros = "ERRO FATAL NO CARREGAMENTO DE IMAGENS ESSENCIAIS: ";
-                    if (!jcRealmenteCarregada) erros += "Imagem JC falhou. ";
-                    if (!coracaoRealmenteCarregado) erros += "Imagem Coração falhou. ";
-                    if (!inimigoRealmenteCarregado) erros += `Imagem Inimigo Polvo (${imgInimigoPolvo.src}) falhou. `;
-                    if (!bossRealmenteCarregado) erros += `Imagem Boss (${imgBossAsset.src}) falhou. `;
-                    console.error(erros);
-                    alert(erros + "Verifique o console (F12) para mais detalhes e os caminhos das imagens.");
-                }
-            }
-        }
-
-        // Associa a função imagemCarregada aos eventos onload e onerror de CADA imagem
-        // O .call(this) no onerror é para manter o contexto de 'this' como a imagem dentro de imagemCarregada
-        imgJC.onload = imagemCarregada;
-        imgCoracao.onload = imagemCarregada;
-        imgInimigoPolvo.onload = imagemCarregada;
-        imgBossAsset.onload = imagemCarregada;
-
-        imgJC.onerror = function() { console.error("ERRO AO CARREGAR imgJC:", imgJC.src); imagemCarregada.call(imgJC); };
-        imgCoracao.onerror = function() { console.error("ERRO AO CARREGAR imgCoracao:", imgCoracao.src); imagemCarregada.call(imgCoracao); };
-        imgInimigoPolvo.onerror = function() { console.error("ERRO AO CARREGAR imgInimigoPolvo:", imgInimigoPolvo.src); imagemCarregada.call(imgInimigoPolvo); };
-        imgBossAsset.onerror = function() { console.error("ERRO AO CARREGAR imgBossAsset:", imgBossAsset.src); imagemCarregada.call(imgBossAsset); };
-
-        // Define os caminhos (src) para as imagens para iniciar o carregamento
-        // CERTIFIQUE-SE QUE OS CAMINHOS ESTÃO CORRETOS E AS IMAGENS EXISTEM NESSES LOCAIS!
-        imgJC.src = 'img/JC_alpha.png';
-        imgCoracao.src = 'img/vida-coracao.png';
-        imgInimigoPolvo.src = 'img/inimigo_polvo.png';// Nome da sua imagem de inimigo
-        imgBossAsset.src = 'img/boss_mestre_do_caos.png';// Nome da sua imagem de boss
-        
-    </script>
+        <canvas id="canvas_jc" width="1000" height="500"></canvas>
+    </div>
 </body>
 </html>
