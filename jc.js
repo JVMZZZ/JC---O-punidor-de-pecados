@@ -72,12 +72,14 @@ function JC(context, teclado, imagem, animacao, canvas) {
     this.hitboxOffsetY = 5;
     this.hitboxLargura = this.largura - 10;
     this.hitboxAltura = this.altura - 10;
+
+    // propriedade para rastrear o dano durante a batalha final.
+    this.sofreuDanoNaBatalhaFinal = false;
 }
 
 JC.prototype = {
     /**
      * Aumenta a vida do jogador, sem ultrapassar o máximo.
-     * @param {number} quantidade - A quantidade de vida a ser recuperada.
      */
     ganharVida: function(quantidade) {
         if (this.estaMorto) return;
@@ -93,9 +95,14 @@ JC.prototype = {
         }
     },
 
+    // método para ser chamado quando a batalha do boss começa.
+    iniciarContagemDanoBoss: function() {
+        this.sofreuDanoNaBatalhaFinal = false;
+        console.log("[JC] Contagem de dano na batalha final iniciada.");
+    },
+
     /**
      * Atualiza a lógica do jogador a cada quadro (input, movimento, estado).
-     * @param {number} deltaTime - O tempo em segundos desde o último quadro.
      */
     atualizar: function(deltaTime) {
         // Se o jogador está morto, interrompe todas as atualizações.
@@ -295,6 +302,13 @@ JC.prototype = {
      */
     receberDano: function() {
         if (this.invencivel || this.estaMorto) return; // Ignora o dano se estiver invencível.
+        
+        // Registra que o jogador sofreu dano durante este período.
+        if (this.animacao && this.animacao.bossInstancia) {
+            this.sofreuDanoNaBatalhaFinal = true;
+            console.log("[JC] Dano recebido durante a batalha do boss!");
+        }
+        
         this.vidas--;
         // Ativa a invencibilidade temporária.
         this.invencivel = true;

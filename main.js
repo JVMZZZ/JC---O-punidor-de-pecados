@@ -23,6 +23,8 @@ window.addEventListener('DOMContentLoaded', (event) => {
     const telaGameOver = document.getElementById('tela-game-over');
     const botaoVoltarMenuGameOver = document.getElementById('botao-voltar-menu-gameover');
     
+    const telaVitoriaPerfeita = document.getElementById('tela-vitoria-perfeita');
+    const botaoVoltarMenuVitoriaPerfeita = document.getElementById('botao-voltar-menu-vitoria-perfeita');
     // Referências para a tela de Vitória.
     const telaVitoria = document.getElementById('tela-vitoria');
     const botaoVoltarMenuVitoria = document.getElementById('botao-voltar-menu-vitoria');
@@ -68,6 +70,9 @@ window.addEventListener('DOMContentLoaded', (event) => {
         if (telaControles) telaControles.classList.add('escondido');
         if (telaGameOver) telaGameOver.classList.add('escondido');
         if (telaVitoria) telaVitoria.classList.add('escondido');
+
+        // Garante que a nova tela também esteja escondida.
+        if (telaVitoriaPerfeita) telaVitoriaPerfeita.classList.add('escondido');
 
         // Liga o loop principal do jogo.
         animacao.ligar();
@@ -178,6 +183,14 @@ window.addEventListener('DOMContentLoaded', (event) => {
         });
     }
     
+    // Botão para voltar ao menu principal a partir da tela de Vitória Perfeita.
+    if (botaoVoltarMenuVitoriaPerfeita) {
+        botaoVoltarMenuVitoriaPerfeita.addEventListener('click', () => {
+            if (telaVitoriaPerfeita) telaVitoriaPerfeita.classList.add('escondido');
+            if (menuPrincipal) menuPrincipal.classList.remove('escondido');
+        });
+    }
+
     // --- Início do Carregamento das Imagens ---
     // Itera sobre o array de imagens e configura os callbacks 'onload' e 'onerror'.
     imagens.forEach(img => {

@@ -298,6 +298,12 @@ Animacao.prototype = {
         this.novoSprite(this.bossInstancia);
         // Marca que o Boss já foi criado.
         this.bossJaFoiSpawnado = true;
+
+        // Inicia o registo de dano quando o boss aparece.
+        if (this.jogadorPrincipal && typeof this.jogadorPrincipal.iniciarContagemDanoBoss === 'function') {
+            this.jogadorPrincipal.iniciarContagemDanoBoss();
+        }
+
         console.log("EVENTO: BOSS SPAWNADO!");
     },
 
@@ -320,9 +326,24 @@ Animacao.prototype = {
      */
     eventoBossDerrotado: function() {
         console.log("Animacao: Evento de Boss Derrotado Recebido!");
-        this.bossInstancia = null; // Limpa a referência ao boss.
-        alert("VOCÊ VENCEU O BOSS! PARABÉNS!");
-        // this.gameOver(); // Opcional: poderia chamar o game over para voltar ao menu.
+        this.desligar(); // Para o loop do jogo
+        this.bossInstancia = null; // Limpa a referência ao boss
+
+        // Verifica se o jogador existe e se NÃO sofreu dano na batalha final.
+        if (this.jogadorPrincipal && !this.jogadorPrincipal.sofreuDanoNaBatalhaFinal) {
+            console.log("CONDIÇÃO DE VITÓRIA PERFEITA ATINGIDA!");
+            // Mostra a tela de VITÓRIA PERFEITA (o Easter Egg)
+            const telaVitoriaPerfeita = document.getElementById('tela-vitoria-perfeita');
+            if (telaVitoriaPerfeita) {
+                telaVitoriaPerfeita.classList.remove('escondido');
+            }
+        } else {
+            // Caso contrário, mostra a tela de vitória normal.
+            const telaVitoriaElement = document.getElementById('tela-vitoria');
+            if (telaVitoriaElement) {
+                telaVitoriaElement.classList.remove('escondido');
+            }
+        }
     },
 
     /**
