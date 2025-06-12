@@ -17,7 +17,6 @@ var TECLA_R = 82; // Tecla R (para restaurar vidas)
 
 /**
  * Construtor para o gerenciador de Teclado.
- * @param {HTMLElement} elemento - O elemento HTML que vai "ouvir" os eventos de teclado (geralmente 'document').
  */
 function Teclado(elemento) {
     this.elemento = elemento; // Armazena o elemento que dispara os eventos.
