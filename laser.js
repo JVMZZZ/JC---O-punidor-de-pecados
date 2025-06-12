@@ -85,7 +85,6 @@ Laser.prototype = {
 
     /**
      * Retorna a caixa de colisão (hitbox) do laser em coordenadas do mundo.
-     * @returns {{x: number, y: number, largura: number, altura: number}} Um objeto representando o retângulo da hitbox.
      */
     getHitboxMundo: function() {
         return {
